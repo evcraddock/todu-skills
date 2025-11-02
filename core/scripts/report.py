@@ -31,6 +31,46 @@ def load_all_tasks() -> List[Dict[str, Any]]:
     return tasks
 
 
+def load_project_registry() -> Dict[str, str]:
+    """Load project registry and create a mapping from project ID to nickname."""
+    projects_file = Path.home() / ".local" / "todu" / "projects.json"
+    if not projects_file.exists():
+        return {}
+
+    try:
+        with open(projects_file) as f:
+            projects = json.load(f)
+
+        # Create mapping: repo/project_id -> nickname
+        project_map = {}
+        for nickname, info in projects.items():
+            repo = info.get("repo", "")
+            if repo:
+                project_map[repo] = nickname
+
+        return project_map
+    except:
+        return {}
+
+
+def get_project_name(task: Dict[str, Any], project_map: Dict[str, str]) -> str | None:
+    """Get human-readable project name for a task."""
+    system = task.get("system", "")
+    system_data = task.get("systemData", {})
+
+    if system == "github":
+        repo = system_data.get("repo", "")
+        return project_map.get(repo)
+    elif system == "forgejo":
+        repo = system_data.get("repo", "")
+        return project_map.get(repo)
+    elif system == "todoist":
+        project_id = system_data.get("project_id", "")
+        return project_map.get(project_id)
+
+    return None
+
+
 def parse_priority(task: Dict[str, Any]) -> str:
     """Extract priority level from task."""
     # Use standardized priority field (set by plugin during sync)
@@ -88,15 +128,17 @@ def get_week_range(date: datetime) -> tuple[datetime, datetime]:
     return monday, sunday
 
 
-def generate_daily_report(tasks: List[Dict[str, Any]], user_tz) -> str:
+def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dict[str, str]) -> str:
     """Generate daily task review."""
     now = datetime.now(user_tz)
     today = now.date()
+    three_days_out = today + timedelta(days=3)
 
     # Filter tasks by categories
     in_progress = []
     due_today = []
     overdue = []
+    coming_soon = []
     high_priority = []
     completed_today = []
     canceled_today = []
@@ -110,7 +152,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz) -> str:
             if status == "in-progress" or task.get("assignees"):
                 in_progress.append(task)
 
-        # Due/Overdue: Any tasks with due dates
+        # Due/Overdue/Coming Soon: Any tasks with due dates
         due_date = parse_due_date(task)
         if due_date and status not in ["done", "closed", "canceled"]:
             due_local = to_local_date(due_date, user_tz).date()
@@ -118,6 +160,10 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz) -> str:
                 overdue.append((task, (today - due_local).days))
             elif due_local == today:
                 due_today.append(task)
+            elif due_local <= three_days_out:
+                # Coming soon: due within next 3 days
+                days_until = (due_local - today).days
+                coming_soon.append((task, days_until))
 
         # High Priority: Tasks with priority field = "high"
         if priority == "high" and status not in ["done", "closed", "canceled"]:
@@ -149,11 +195,14 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz) -> str:
 
     # Generate markdown report
     lines = [
-        f"# Daily Task Review - {today.strftime('%Y-%m-%d')}",
+        f"# Daily Review - {today.strftime('%m-%d-%Y')}",
+        "",
+        "*This is a read-only report. Checkboxes are for visual reference only and are not interactive.*",
         "",
         "## Summary",
         f"- **In Progress**: {len(in_progress)} tasks",
-        f"- **Due/Overdue**: {len(overdue) + len(due_today)} tasks",
+        f"- **Due**: {len(overdue) + len(due_today)} tasks",
+        f"- **Coming Soon**: {len(coming_soon)} tasks",
         f"- **High Priority**: {len(high_priority)} tasks",
         f"- **Completed Today**: {len(completed_today)} tasks",
         f"- **Canceled Today**: {len(canceled_today)} tasks",
@@ -166,14 +215,20 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz) -> str:
         lines.append("")
         for task in in_progress:
             system = task.get("system", "")
+            task_id = task.get("id", "")
             title = task.get("title", "")
             priority = parse_priority(task)
             assignees = ", ".join(task.get("assignees", []))
             due = format_date(parse_due_date(task))
             url = task.get("url", "")
+            project = get_project_name(task, project_map)
 
-            lines.append(f"**{title}**")
+            lines.append(f"- [ ] **{title}**")
             meta = [f"System: {system}"]
+            if project:
+                meta.append(f"Project: {project}")
+            if task_id:
+                meta.append(f"ID: {task_id}")
             if priority != "none":
                 meta.append(f"Priority: {priority}")
             if assignees:
@@ -190,13 +245,19 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz) -> str:
         lines.append("")
         for task, days_late in overdue:
             system = task.get("system", "")
+            task_id = task.get("id", "")
             title = task.get("title", "")
             priority = parse_priority(task)
             assignees = ", ".join(task.get("assignees", []))
             url = task.get("url", "")
+            project = get_project_name(task, project_map)
 
-            lines.append(f"**{title}** ({days_late} days late)")
+            lines.append(f"- [ ] **{title}** ({days_late} days late)")
             meta = [f"System: {system}"]
+            if project:
+                meta.append(f"Project: {project}")
+            if task_id:
+                meta.append(f"ID: {task_id}")
             if priority != "none":
                 meta.append(f"Priority: {priority}")
             if assignees:
@@ -211,17 +272,55 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz) -> str:
         lines.append("")
         for task in due_today:
             system = task.get("system", "")
+            task_id = task.get("id", "")
             title = task.get("title", "")
             priority = parse_priority(task)
             assignees = ", ".join(task.get("assignees", []))
             url = task.get("url", "")
+            project = get_project_name(task, project_map)
 
-            lines.append(f"**{title}**")
+            lines.append(f"- [ ] **{title}**")
             meta = [f"System: {system}"]
+            if project:
+                meta.append(f"Project: {project}")
+            if task_id:
+                meta.append(f"ID: {task_id}")
             if priority != "none":
                 meta.append(f"Priority: {priority}")
             if assignees:
                 meta.append(f"Assignee: {assignees}")
+            lines.append(f"  {' • '.join(meta)}")
+            lines.append(f"  {url}")
+            lines.append("")
+
+    # Coming Soon section (due in next 3 days)
+    if coming_soon:
+        lines.append("## 📆 Coming Soon ({})".format(len(coming_soon)))
+        lines.append("")
+        # Sort by days until due
+        coming_soon.sort(key=lambda x: x[1])
+        for task, days_until in coming_soon:
+            system = task.get("system", "")
+            task_id = task.get("id", "")
+            title = task.get("title", "")
+            priority = parse_priority(task)
+            assignees = ", ".join(task.get("assignees", []))
+            due = format_date(parse_due_date(task))
+            url = task.get("url", "")
+            project = get_project_name(task, project_map)
+
+            days_text = "tomorrow" if days_until == 1 else f"in {days_until} days"
+            lines.append(f"- [ ] **{title}** ({days_text})")
+            meta = [f"System: {system}"]
+            if project:
+                meta.append(f"Project: {project}")
+            if task_id:
+                meta.append(f"ID: {task_id}")
+            if priority != "none":
+                meta.append(f"Priority: {priority}")
+            if assignees:
+                meta.append(f"Assignee: {assignees}")
+            meta.append(f"Due: {due}")
             lines.append(f"  {' • '.join(meta)}")
             lines.append(f"  {url}")
             lines.append("")
@@ -232,13 +331,19 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz) -> str:
         lines.append("")
         for task in high_priority:
             system = task.get("system", "")
+            task_id = task.get("id", "")
             title = task.get("title", "")
             assignees = ", ".join(task.get("assignees", []))
             due = format_date(parse_due_date(task))
             url = task.get("url", "")
+            project = get_project_name(task, project_map)
 
-            lines.append(f"**{title}**")
+            lines.append(f"- [ ] **{title}**")
             meta = [f"System: {system}"]
+            if project:
+                meta.append(f"Project: {project}")
+            if task_id:
+                meta.append(f"ID: {task_id}")
             if assignees:
                 meta.append(f"Assignee: {assignees}")
             if due != "-":
@@ -253,14 +358,21 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz) -> str:
         lines.append("")
         for task in completed_today:
             system = task.get("system", "")
+            task_id = task.get("id", "")
             title = task.get("title", "")
             status = task.get("status", "")
             assignees = ", ".join(task.get("assignees", []))
             labels = [l for l in task.get("labels", []) if not l.startswith("status:")]
             url = task.get("url", "")
+            project = get_project_name(task, project_map)
 
-            lines.append(f"**{title}**")
-            meta = [f"System: {system}", f"Status: {status}"]
+            lines.append(f"- [x] **{title}**")
+            meta = [f"System: {system}"]
+            if project:
+                meta.append(f"Project: {project}")
+            if task_id:
+                meta.append(f"ID: {task_id}")
+            meta.append(f"Status: {status}")
             if assignees:
                 meta.append(f"Assignee: {assignees}")
             if labels:
@@ -275,13 +387,19 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz) -> str:
         lines.append("")
         for task in canceled_today:
             system = task.get("system", "")
+            task_id = task.get("id", "")
             title = task.get("title", "")
             assignees = ", ".join(task.get("assignees", []))
             labels = [l for l in task.get("labels", []) if not l.startswith("status:")]
             url = task.get("url", "")
+            project = get_project_name(task, project_map)
 
             lines.append(f"**{title}**")
             meta = [f"System: {system}"]
+            if project:
+                meta.append(f"Project: {project}")
+            if task_id:
+                meta.append(f"ID: {task_id}")
             if assignees:
                 meta.append(f"Assignee: {assignees}")
             if labels:
@@ -293,7 +411,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz) -> str:
     return "\n".join(lines)
 
 
-def generate_weekly_report(tasks: List[Dict[str, Any]], user_tz, week_date: datetime | None = None) -> str:
+def generate_weekly_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dict[str, str], week_date: datetime | None = None) -> str:
     """Generate weekly task report."""
     if week_date is None:
         week_date = datetime.now(user_tz)
@@ -349,14 +467,21 @@ def generate_weekly_report(tasks: List[Dict[str, Any]], user_tz, week_date: date
         completed.sort(key=lambda x: x[1])
         for task, completed_at in completed:
             system = task.get("system", "")
+            task_id = task.get("id", "")
             title = task.get("title", "")
             completed_date = completed_at.strftime("%Y-%m-%d")
             assignees = ", ".join(task.get("assignees", []))
             labels = [l for l in task.get("labels", []) if not l.startswith("status:")]
             url = task.get("url", "")
+            project = get_project_name(task, project_map)
 
             lines.append(f"**{title}**")
-            meta = [f"System: {system}", f"Completed: {completed_date}"]
+            meta = [f"System: {system}"]
+            if project:
+                meta.append(f"Project: {project}")
+            if task_id:
+                meta.append(f"ID: {task_id}")
+            meta.append(f"Completed: {completed_date}")
             if assignees:
                 meta.append(f"Assignee: {assignees}")
             if labels:
@@ -373,14 +498,21 @@ def generate_weekly_report(tasks: List[Dict[str, Any]], user_tz, week_date: date
         canceled.sort(key=lambda x: x[1])
         for task, canceled_at in canceled:
             system = task.get("system", "")
+            task_id = task.get("id", "")
             title = task.get("title", "")
             canceled_date = canceled_at.strftime("%Y-%m-%d")
             assignees = ", ".join(task.get("assignees", []))
             labels = [l for l in task.get("labels", []) if not l.startswith("status:")]
             url = task.get("url", "")
+            project = get_project_name(task, project_map)
 
             lines.append(f"**{title}**")
-            meta = [f"System: {system}", f"Cancelled: {canceled_date}"]
+            meta = [f"System: {system}"]
+            if project:
+                meta.append(f"Project: {project}")
+            if task_id:
+                meta.append(f"ID: {task_id}")
+            meta.append(f"Cancelled: {canceled_date}")
             if assignees:
                 meta.append(f"Assignee: {assignees}")
             if labels:
@@ -410,9 +542,12 @@ def main():
         print("Warning: No tasks found in cache. Run sync commands first.", file=sys.stderr)
         return 1
 
+    # Load project registry
+    project_map = load_project_registry()
+
     # Generate report
     if args.type == 'daily':
-        report = generate_daily_report(tasks, user_tz)
+        report = generate_daily_report(tasks, user_tz, project_map)
     else:  # weekly
         week_date = None
         if args.week:
@@ -421,7 +556,7 @@ def main():
             except:
                 print(f"Error: Invalid week date format: {args.week}", file=sys.stderr)
                 return 1
-        report = generate_weekly_report(tasks, user_tz, week_date)
+        report = generate_weekly_report(tasks, user_tz, project_map, week_date)
 
     # Output report
     if args.output:
