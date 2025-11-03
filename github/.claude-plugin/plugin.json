@@ -4,5 +4,25 @@
   "version": "0.1.0",
   "author": {
     "name": "Erik Craddock"
+  },
+  "system": "github",
+  "displayName": "GitHub",
+  "capabilities": {
+    "taskManagement": true,
+    "comments": true,
+    "labels": true,
+    "assignees": true,
+    "milestones": true
+  },
+  "scripts": {
+    "create": "scripts/create-issue.py",
+    "update": "scripts/update-issue.py",
+    "sync": "scripts/sync-issues.py",
+    "view": "scripts/view-issue.py",
+    "comment": "scripts/create-comment.py"
+  },
+  "requirements": {
+    "env": ["GITHUB_TOKEN"],
+    "description": "Get your token from https://github.com/settings/tokens"
   }
 }

@@ -4,5 +4,25 @@
   "version": "0.1.0",
   "author": {
     "name": "Erik Craddock"
+  },
+  "system": "todoist",
+  "displayName": "Todoist",
+  "capabilities": {
+    "taskManagement": true,
+    "comments": true,
+    "labels": false,
+    "assignees": false,
+    "milestones": false
+  },
+  "scripts": {
+    "create": "scripts/create-task.py",
+    "update": "scripts/update-task.py",
+    "sync": "scripts/sync-tasks.py",
+    "view": "scripts/view-task.py",
+    "comment": "scripts/create-comment.py"
+  },
+  "requirements": {
+    "env": ["TODOIST_API_KEY"],
+    "description": "Get your API key from https://todoist.com/app/settings/integrations/developer"
   }
 }
