@@ -14,10 +14,11 @@ from pathlib import Path
 from datetime import datetime, timezone
 from github import Github, Auth
 
-# Add path to core scripts for sync_manager
+# Add path to core scripts for sync_manager and id_registry
 core_scripts_path = Path(__file__).parent.parent.parent / "core" / "scripts"
 sys.path.insert(0, str(core_scripts_path))
 from sync_manager import update_sync_metadata
+from id_registry import assign_id, lookup_id
 
 CACHE_DIR = Path.home() / ".local" / "todu" / "github"
 ITEMS_DIR = Path.home() / ".local" / "todu" / "issues"
@@ -55,7 +56,7 @@ def normalize_issue(issue, repo_name):
             break
 
     normalized = {
-        "id": str(issue.number),
+        "id": None,  # Will be assigned below
         "system": "github",
         "type": "issue",
         "title": issue.title,
@@ -128,11 +129,26 @@ def sync_issues(repo_name, since=None, issue_number=None):
                 continue
 
             # Use system and repo prefix in filename to avoid conflicts
-            issue_file = ITEMS_DIR / f"github-{repo_prefix}-{issue.number}.json"
+            filename = f"github-{repo_prefix}-{issue.number}.json"
+            issue_file = ITEMS_DIR / filename
             is_new = not issue_file.exists()
 
             # Save normalized issue
             normalized = normalize_issue(issue, repo_name)
+
+            # Assign or reuse todu ID
+            if is_new:
+                # New issue: assign new todu ID
+                todu_id = assign_id(filename)
+            else:
+                # Existing issue: look up existing todu ID
+                todu_id = lookup_id(filename)
+                if todu_id is None:
+                    # File exists but not in registry (shouldn't happen, but handle it)
+                    todu_id = assign_id(filename)
+
+            normalized["id"] = todu_id
+
             with open(issue_file, 'w') as f:
                 json.dump(normalized, f, indent=2)
 
@@ -145,7 +161,8 @@ def sync_issues(repo_name, since=None, issue_number=None):
         update_sync_metadata(
             system="github",
             mode=sync_mode,
-            task_count=new_count + updated_count
+            task_count=new_count + updated_count,
+            repo=repo_name
         )
 
         result = {

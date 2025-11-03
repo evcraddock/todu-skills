@@ -19,6 +19,11 @@ script_dir = Path(__file__).parent
 sys.path.insert(0, str(script_dir))
 from label_utils import ensure_labels_exist, VALID_STATUSES, VALID_PRIORITIES
 
+# Add path to core scripts for id_registry
+core_scripts_path = Path(__file__).parent.parent.parent / "core" / "scripts"
+sys.path.insert(0, str(core_scripts_path))
+from id_registry import lookup_filename
+
 def get_forgejo_url():
     """Get Forgejo base URL from environment or git remote."""
     # First check environment variable
@@ -228,8 +233,9 @@ def update_issue(repo_name, issue_number, status=None, priority=None, close=Fals
 
 def main():
     parser = argparse.ArgumentParser(description='Update a Forgejo issue status, priority, state, title, or body')
-    parser.add_argument('--repo', required=True, help='Repository in owner/name format')
-    parser.add_argument('--issue', type=int, required=True, help='Issue number to update')
+    parser.add_argument('--repo', help='Repository in owner/name format')
+    parser.add_argument('--issue', type=int, help='Issue number to update')
+    parser.add_argument('--id', type=int, help='Todu ID to look up')
     parser.add_argument('--status', choices=VALID_STATUSES, help='Set issue status')
     parser.add_argument('--priority', choices=VALID_PRIORITIES, help='Set issue priority')
     parser.add_argument('--close', action='store_true', help='Close issue (sets status:done)')
@@ -246,6 +252,35 @@ def main():
     # Validate --close and --cancel are mutually exclusive
     if args.close and args.cancel:
         parser.error("Cannot specify both --close and --cancel")
+
+    # Handle todu ID lookup
+    if args.id:
+        # Look up filename from todu ID
+        filename = lookup_filename(args.id)
+        if not filename:
+            print(json.dumps({"error": f"Todu ID {args.id} not found in registry"}), file=sys.stderr)
+            return 1
+
+        # Parse filename to extract repo and issue number
+        # Expected format: forgejo-owner_repo-number.json
+        if not filename.startswith('forgejo-'):
+            print(json.dumps({"error": f"Todu ID {args.id} is not a Forgejo issue"}), file=sys.stderr)
+            return 1
+
+        # Extract repo and issue number from filename
+        parts = filename.replace('forgejo-', '').replace('.json', '').rsplit('-', 1)
+        if len(parts) != 2:
+            print(json.dumps({"error": f"Invalid filename format: {filename}"}), file=sys.stderr)
+            return 1
+
+        repo_name = parts[0].replace('_', '/')
+        issue_number = int(parts[1])
+
+        return update_issue(repo_name, issue_number, args.status, args.priority, args.close, args.cancel, args.title, args.body)
+
+    # Traditional repo + issue lookup
+    if not args.repo or not args.issue:
+        parser.error("Either --id or both --repo and --issue must be specified")
 
     return update_issue(args.repo, args.issue, args.status, args.priority, args.close, args.cancel, args.title, args.body)
 

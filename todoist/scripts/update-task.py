@@ -14,6 +14,11 @@ import subprocess
 from pathlib import Path
 from todoist_api_python.api import TodoistAPI
 
+# Add path to core scripts for id_registry
+core_scripts_path = Path(__file__).parent.parent.parent / "core" / "scripts"
+sys.path.insert(0, str(core_scripts_path))
+from id_registry import lookup_filename
+
 # Valid status and priority values
 VALID_STATUSES = ["backlog", "in-progress", "done", "canceled"]
 VALID_PRIORITIES = ["low", "medium", "high"]
@@ -191,7 +196,8 @@ def update_task(task_id, status=None, priority=None, complete=False, close=False
 
 def main():
     parser = argparse.ArgumentParser(description='Update a Todoist task status, priority, state, content, or description')
-    parser.add_argument('--task-id', required=True, help='Task ID to update')
+    parser.add_argument('--task-id', help='Todoist task ID (UUID)')
+    parser.add_argument('--id', type=int, help='Todu ID to look up')
     parser.add_argument('--status', choices=VALID_STATUSES, help='Set task status')
     parser.add_argument('--priority', choices=VALID_PRIORITIES, help='Set task priority')
     parser.add_argument('--complete', action='store_true', help='Mark task as completed')
@@ -209,6 +215,29 @@ def main():
     # Validate --close and --cancel are mutually exclusive
     if args.close and args.cancel:
         parser.error("Cannot specify both --close and --cancel")
+
+    # Handle todu ID lookup
+    if args.id:
+        # Look up filename from todu ID
+        filename = lookup_filename(args.id)
+        if not filename:
+            print(json.dumps({"error": f"Todu ID {args.id} not found in registry"}), file=sys.stderr)
+            return 1
+
+        # Parse filename to extract task ID
+        # Expected format: todoist-{task_id}.json
+        if not filename.startswith('todoist-'):
+            print(json.dumps({"error": f"Todu ID {args.id} is not a Todoist task"}), file=sys.stderr)
+            return 1
+
+        # Extract task ID from filename
+        task_id = filename.replace('todoist-', '').replace('.json', '')
+
+        return update_task(task_id, args.status, args.priority, args.complete, args.close, args.cancel, args.content, args.description)
+
+    # Traditional task ID lookup
+    if not args.task_id:
+        parser.error("Either --id or --task-id must be specified")
 
     return update_task(args.task_id, args.status, args.priority, args.complete, args.close, args.cancel, args.content, args.description)
 

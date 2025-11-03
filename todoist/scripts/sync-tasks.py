@@ -14,10 +14,11 @@ from pathlib import Path
 from datetime import datetime, timezone
 from todoist_api_python.api import TodoistAPI
 
-# Add path to core scripts for sync_manager
+# Add path to core scripts for sync_manager and id_registry
 core_scripts_path = Path(__file__).parent.parent.parent / "core" / "scripts"
 sys.path.insert(0, str(core_scripts_path))
 from sync_manager import update_sync_metadata
+from id_registry import assign_id, lookup_id
 
 CACHE_DIR = Path.home() / ".local" / "todu" / "todoist"
 ITEMS_DIR = Path.home() / ".local" / "todu" / "issues"
@@ -88,7 +89,7 @@ def normalize_task(task):
         priority_value = "low"
 
     normalized = {
-        "id": task.id,
+        "id": None,  # Will be assigned below
         "system": "todoist",
         "type": "task",
         "title": task.content,
@@ -103,6 +104,7 @@ def normalize_task(task):
         "priority": priority_value,  # Standardized priority field
         "dueDate": due_date,  # Standardized due date field
         "systemData": {
+            "task_id": task.id,  # Moved UUID here
             "project_id": task.project_id,
             "priority": task.priority,
             "due": due_date,
@@ -154,11 +156,26 @@ def sync_tasks(project_id=None, task_id=None):
         updated_count = 0
 
         for task in tasks:
-            task_file = ITEMS_DIR / f"todoist-{task.id}.json"
+            filename = f"todoist-{task.id}.json"
+            task_file = ITEMS_DIR / filename
             is_new = not task_file.exists()
 
             # Save normalized task
             normalized = normalize_task(task)
+
+            # Assign or reuse todu ID
+            if is_new:
+                # New task: assign new todu ID
+                todu_id = assign_id(filename)
+            else:
+                # Existing task: look up existing todu ID
+                todu_id = lookup_id(filename)
+                if todu_id is None:
+                    # File exists but not in registry (shouldn't happen, but handle it)
+                    todu_id = assign_id(filename)
+
+            normalized["id"] = todu_id
+
             with open(task_file, 'w') as f:
                 json.dump(normalized, f, indent=2)
 

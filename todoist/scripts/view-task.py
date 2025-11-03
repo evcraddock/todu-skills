@@ -10,8 +10,14 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 from datetime import datetime
 from todoist_api_python.api import TodoistAPI
+
+# Add path to core scripts for id_registry
+core_scripts_path = Path(__file__).parent.parent.parent / "core" / "scripts"
+sys.path.insert(0, str(core_scripts_path))
+from id_registry import lookup_filename
 
 # Priority mapping: Todoist 1-4 to our labels
 PRIORITY_TO_LABEL = {
@@ -145,9 +151,33 @@ def view_task(task_id):
 
 def main():
     parser = argparse.ArgumentParser(description='View Todoist task with all comments')
-    parser.add_argument('--task-id', required=True, help='Task ID')
+    parser.add_argument('--task-id', help='Todoist task ID (UUID)')
+    parser.add_argument('--id', type=int, help='Todu ID to look up')
 
     args = parser.parse_args()
+
+    # Handle todu ID lookup
+    if args.id:
+        # Look up filename from todu ID
+        filename = lookup_filename(args.id)
+        if not filename:
+            print(json.dumps({"error": f"Todu ID {args.id} not found in registry"}), file=sys.stderr)
+            return 1
+
+        # Parse filename to extract task ID
+        # Expected format: todoist-{task_id}.json
+        if not filename.startswith('todoist-'):
+            print(json.dumps({"error": f"Todu ID {args.id} is not a Todoist task"}), file=sys.stderr)
+            return 1
+
+        # Extract task ID from filename
+        task_id = filename.replace('todoist-', '').replace('.json', '')
+
+        return view_task(task_id)
+
+    # Traditional task ID lookup
+    if not args.task_id:
+        parser.error("Either --id or --task-id must be specified")
 
     return view_task(args.task_id)
 
