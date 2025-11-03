@@ -64,8 +64,8 @@ The weekly review includes:
   tackle soon)
 - **Active**: Tasks with `priority:medium` label (currently active work
   items)
-- **Backlog**: Tasks with `priority:low` label (lower priority items for
-  later)
+- **Backlog**: Tasks with `priority:low` label or no priority label (lower
+  priority items and unprioritized tasks)
 - **Completed This Week**: Tasks marked `done`/`closed` during the
   calendar week (Monday-Sunday)
 - **Cancelled This Week**: Tasks marked `canceled` during the calendar week
@@ -254,4 +254,5 @@ cat ~/.local/todu/sync.json
 - All date/time calculations use user's system timezone
 - Empty sections are omitted from output
 - Completed/Canceled sections only show tasks from the calendar week
-- Tasks must have explicit priority labels to appear in Next/Active/Backlog sections
+- Tasks with no priority label appear in Backlog section
+- Waiting section takes precedence over priority sections

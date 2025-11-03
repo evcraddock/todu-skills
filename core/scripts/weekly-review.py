@@ -184,8 +184,8 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
         if priority == "medium" and status not in ["done", "closed", "canceled"]:
             active.append(task)
 
-        # Backlog: priority:low
-        if priority == "low" and status not in ["done", "closed", "canceled"]:
+        # Backlog: priority:low OR no priority (none)
+        if (priority == "low" or priority == "none") and status not in ["done", "closed", "canceled"]:
             backlog.append(task)
 
         # Completed this week
