@@ -214,7 +214,7 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
 
     # Generate markdown report
     lines = [
-        f"# Weekly Review - Week of {monday.strftime('%Y-%m-%d')}",
+        f"# Weekly Review - {monday.strftime('%m-%d-%Y')} to {sunday.strftime('%m-%d-%Y')}",
         "",
         "*This is a read-only report. Checkboxes are for visual reference only and are not interactive.*",
         "",

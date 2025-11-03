@@ -126,7 +126,7 @@ $PLUGIN_DIR/scripts/weekly-review.py --week 2025-10-21 \
 ## Example Output Format
 
 ```markdown
-# Weekly Review - Week of 2025-10-28
+# Weekly Review - 10-28-2025 to 11-03-2025
 
 *This is a read-only report. Checkboxes are for visual reference only
 and are not interactive.*
