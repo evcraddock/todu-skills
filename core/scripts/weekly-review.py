@@ -138,7 +138,7 @@ def format_date(dt: datetime | None) -> str:
     """Format date for display."""
     if dt is None:
         return "-"
-    return dt.strftime("%Y-%m-%d")
+    return dt.strftime("%m-%d-%Y")
 
 
 def get_week_range(date: datetime) -> tuple[datetime, datetime]:
@@ -228,7 +228,7 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
         ""
     ]
 
-    # Helper function to format a task item
+    # Helper function to format a task item (without project in metadata)
     def format_task(task: Dict[str, Any], show_due: bool = True, show_priority: bool = False) -> List[str]:
         system = task.get("system", "")
         todu_id = task.get("id", "")
@@ -238,13 +238,10 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
         assignees = ", ".join(task.get("assignees", []))
         due = format_date(parse_due_date(task))
         url = task.get("url", "")
-        project = get_project_name(task, project_map)
 
         result = [f"- [ ] **#{todu_id} - {title}**"]
 
         meta = [f"System: {system}"]
-        if project:
-            meta.append(f"Project: {project}")
         if system_id:
             meta.append(f"System ID: {system_id}")
         if show_priority and priority != "none":
@@ -260,14 +257,31 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
 
         return result
 
+    # Helper function to group tasks by project and format with project headers
+    def format_tasks_by_project(tasks: List[Dict[str, Any]], show_due: bool = True, show_priority: bool = False) -> List[str]:
+        result = []
+        current_project = None
+
+        for task in tasks:
+            project = get_project_name(task, project_map)
+            if project != current_project:
+                if current_project is not None:
+                    result.append("")  # Blank line between projects
+                result.append(f"**{project or 'Unknown'}**")
+                result.append("")
+                current_project = project
+
+            result.extend(format_task(task, show_due, show_priority))
+
+        return result
+
     # Waiting section
     if waiting:
         lines.append("## 🔒 Waiting ({})".format(len(waiting)))
         lines.append("")
         # Sort by project name
         waiting.sort(key=lambda t: get_project_name(t, project_map) or "")
-        for task in waiting:
-            lines.extend(format_task(task, show_priority=True))
+        lines.extend(format_tasks_by_project(waiting, show_priority=True))
 
     # Next section
     if next_tasks:
@@ -275,8 +289,7 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
         lines.append("")
         # Sort by project name
         next_tasks.sort(key=lambda t: get_project_name(t, project_map) or "")
-        for task in next_tasks:
-            lines.extend(format_task(task))
+        lines.extend(format_tasks_by_project(next_tasks))
 
     # Active section
     if active:
@@ -284,8 +297,7 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
         lines.append("")
         # Sort by project name
         active.sort(key=lambda t: get_project_name(t, project_map) or "")
-        for task in active:
-            lines.extend(format_task(task))
+        lines.extend(format_tasks_by_project(active))
 
     # Backlog section
     if backlog:
@@ -293,8 +305,7 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
         lines.append("")
         # Sort by project name
         backlog.sort(key=lambda t: get_project_name(t, project_map) or "")
-        for task in backlog:
-            lines.extend(format_task(task, show_due=False))
+        lines.extend(format_tasks_by_project(backlog, show_due=True))
 
     # Completed section
     if completed:
@@ -302,21 +313,29 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
         lines.append("")
         # Sort by project name, then completion date
         completed.sort(key=lambda x: (get_project_name(x[0], project_map) or "", x[1]))
+
+        current_project = None
         for task, completed_at in completed:
             system = task.get("system", "")
             todu_id = task.get("id", "")
             system_id = get_system_identifier(task)
             title = task.get("title", "")
-            completed_date = completed_at.strftime("%Y-%m-%d")
+            completed_date = completed_at.strftime("%m-%d-%Y")
             assignees = ", ".join(task.get("assignees", []))
             labels = [l for l in task.get("labels", []) if not l.startswith("status:") and not l.startswith("priority:")]
             url = task.get("url", "")
             project = get_project_name(task, project_map)
 
+            # Add project header if changed
+            if project != current_project:
+                if current_project is not None:
+                    lines.append("")  # Blank line between projects
+                lines.append(f"**{project or 'Unknown'}**")
+                lines.append("")
+                current_project = project
+
             lines.append(f"- [x] **#{todu_id} - {title}**")
             meta = [f"System: {system}"]
-            if project:
-                meta.append(f"Project: {project}")
             if system_id:
                 meta.append(f"System ID: {system_id}")
             meta.append(f"Completed: {completed_date}")
@@ -334,21 +353,29 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
         lines.append("")
         # Sort by project name, then cancellation date
         canceled.sort(key=lambda x: (get_project_name(x[0], project_map) or "", x[1]))
+
+        current_project = None
         for task, canceled_at in canceled:
             system = task.get("system", "")
             todu_id = task.get("id", "")
             system_id = get_system_identifier(task)
             title = task.get("title", "")
-            canceled_date = canceled_at.strftime("%Y-%m-%d")
+            canceled_date = canceled_at.strftime("%m-%d-%Y")
             assignees = ", ".join(task.get("assignees", []))
             labels = [l for l in task.get("labels", []) if not l.startswith("status:") and not l.startswith("priority:")]
             url = task.get("url", "")
             project = get_project_name(task, project_map)
 
+            # Add project header if changed
+            if project != current_project:
+                if current_project is not None:
+                    lines.append("")  # Blank line between projects
+                lines.append(f"**{project or 'Unknown'}**")
+                lines.append("")
+                current_project = project
+
             lines.append(f"**#{todu_id} - {title}**")
             meta = [f"System: {system}"]
-            if project:
-                meta.append(f"Project: {project}")
             if system_id:
                 meta.append(f"System ID: {system_id}")
             meta.append(f"Cancelled: {canceled_date}")
