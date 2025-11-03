@@ -95,11 +95,12 @@ def update_task(task_id, status=None, priority=None, complete=False, close=False
             if status not in VALID_STATUSES:
                 print(json.dumps({"error": f"Invalid status '{status}'. Valid values: {', '.join(VALID_STATUSES)}"}), file=sys.stderr)
                 return 1
-            # Add status as a label (since Todoist doesn't have status concept)
+            # Remove all existing status labels
+            task_labels = [l for l in task_labels if not l.startswith("status:")]
+            # Add new status as a label (since Todoist doesn't have status concept)
             status_label = f"status:{status}"
-            if status_label not in task_labels:
-                task_labels.append(status_label)
-                labels_to_update = task_labels
+            task_labels.append(status_label)
+            labels_to_update = task_labels
 
         # Update labels in Todoist if needed
         if labels_to_update is not None:
