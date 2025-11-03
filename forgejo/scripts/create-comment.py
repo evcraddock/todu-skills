@@ -14,38 +14,10 @@ import subprocess
 from pathlib import Path
 import requests
 
-def get_forgejo_url():
-    """Get Forgejo base URL from environment or git remote."""
-    # First check environment variable
-    if os.environ.get('FORGEJO_URL'):
-        return os.environ['FORGEJO_URL'].rstrip('/')
-
-    # Try to extract from git remote
-    try:
-        result = subprocess.run(
-            ['git', 'remote', 'get-url', 'origin'],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        remote_url = result.stdout.strip()
-
-        # Parse URL to extract base domain
-        # Handle both SSH and HTTPS URLs
-        if remote_url.startswith('git@'):
-            # SSH format: git@forgejo.example.com:owner/repo.git
-            host = remote_url.split('@')[1].split(':')[0]
-            return f"https://{host}"
-        elif remote_url.startswith('http'):
-            # HTTPS format: https://forgejo.example.com/owner/repo.git
-            from urllib.parse import urlparse
-            parsed = urlparse(remote_url)
-            return f"{parsed.scheme}://{parsed.netloc}"
-    except Exception:
-        pass
-
-    print(json.dumps({"error": "FORGEJO_URL environment variable not set and could not detect from git remote"}), file=sys.stderr)
-    sys.exit(1)
+# Import shared utilities
+script_dir = Path(__file__).parent
+sys.path.insert(0, str(script_dir))
+from label_utils import get_forgejo_url
 
 def create_comment(repo_name, issue_number, body):
     """Create a comment on a Forgejo issue and return JSON."""
@@ -54,7 +26,7 @@ def create_comment(repo_name, issue_number, body):
         print(json.dumps({"error": "FORGEJO_TOKEN environment variable not set"}), file=sys.stderr)
         sys.exit(1)
 
-    base_url = get_forgejo_url()
+    base_url = get_forgejo_url(repo_name)
 
     try:
         # Forgejo API endpoint for creating issue comments

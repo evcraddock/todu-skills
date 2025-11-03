@@ -24,17 +24,31 @@ class Plugin:
         with open(manifest_path) as f:
             self.manifest = json.load(f)
 
-        # Standard fields
+        # Standard fields from plugin.json
         self.name = self.manifest['name']
         self.description = self.manifest.get('description', '')
         self.version = self.manifest.get('version', '0.0.0')
 
-        # Extended fields
-        self.system = self.manifest.get('system', self.name)
-        self.display_name = self.manifest.get('displayName', self.name.title())
-        self.capabilities = self.manifest.get('capabilities', {})
-        self.scripts = self.manifest.get('scripts', {})
-        self.requirements = self.manifest.get('requirements', {})
+        # Extended fields from todu.json
+        todu_path = plugin_dir / ".claude-plugin" / "todu.json"
+        if todu_path.exists():
+            with open(todu_path) as f:
+                todu_manifest = json.load(f)
+
+            self.system = todu_manifest.get('system', self.name)
+            self.display_name = todu_manifest.get('displayName', self.name.title())
+            self.capabilities = todu_manifest.get('capabilities', {})
+            self.scripts = todu_manifest.get('scripts', {})
+            self.requirements = todu_manifest.get('requirements', {})
+            self.interface = todu_manifest.get('interface', {})
+        else:
+            # Fallback to defaults if todu.json doesn't exist
+            self.system = self.name
+            self.display_name = self.name.title()
+            self.capabilities = {}
+            self.scripts = {}
+            self.requirements = {}
+            self.interface = {}
 
     def get_script_path(self, operation: str) -> Path:
         """Get path to script for an operation.
@@ -72,6 +86,65 @@ class Plugin:
             if not os.environ.get(env_var):
                 return False
         return True
+
+    def build_args(self, operation: str, task_data: Optional[Dict] = None, params: Optional[Dict] = None) -> List[str]:
+        """Build command line arguments for an operation based on interface spec.
+
+        Args:
+            operation: The operation name (create, update, sync, view, comment)
+            task_data: Task data dictionary (contains systemData, etc.)
+            params: Additional parameters to pass to the script
+
+        Returns:
+            List of command line arguments
+
+        Raises:
+            ValueError: If operation is not supported or required args missing
+        """
+        if not self.interface or 'operations' not in self.interface:
+            raise ValueError(f"No interface specification found for {self.system}")
+
+        if operation not in self.interface['operations']:
+            raise ValueError(
+                f"Operation '{operation}' not in interface spec for {self.system}. "
+                f"Available: {', '.join(self.interface['operations'].keys())}"
+            )
+
+        args = []
+        task_data = task_data or {}
+        params = params or {}
+
+        op_spec = self.interface['operations'][operation]
+
+        for arg_name, arg_spec in op_spec['args'].items():
+            source = arg_spec['source']
+            flag = arg_spec['flag']
+            optional = arg_spec.get('optional', False)
+
+            # Resolve value from source
+            value = None
+
+            if source == 'param':
+                # Value comes from params dict
+                value = params.get(arg_name)
+            elif source.startswith('systemData.'):
+                # Value comes from task_data.systemData.field
+                field = source.split('.', 1)[1]
+                value = task_data.get('systemData', {}).get(field)
+            else:
+                # Value comes from params directly (for repo, project_id, etc.)
+                value = params.get(source)
+
+            # Add to args if value exists
+            if value is not None:
+                args.extend([flag, str(value)])
+            elif not optional:
+                raise ValueError(
+                    f"Required argument '{arg_name}' (source: {source}) "
+                    f"not found for operation '{operation}' on {self.system}"
+                )
+
+        return args
 
     def __repr__(self):
         return f"Plugin({self.system}, available={self.is_available()})"
@@ -161,6 +234,30 @@ class PluginRegistry:
                 f"Available systems: {available}"
             )
         return plugin.get_script_path(operation)
+
+    def build_args(self, system: str, operation: str, task_data: Optional[Dict] = None, params: Optional[Dict] = None) -> List[str]:
+        """Build command line arguments for an operation.
+
+        Args:
+            system: The system name (github, forgejo, todoist)
+            operation: The operation name (create, update, sync, view, comment)
+            task_data: Task data dictionary (contains systemData, etc.)
+            params: Additional parameters to pass to the script
+
+        Returns:
+            List of command line arguments
+
+        Raises:
+            ValueError: If system not found or required args missing
+        """
+        plugin = self.get_plugin(system)
+        if not plugin:
+            available = ', '.join(self.plugins.keys())
+            raise ValueError(
+                f"System '{system}' not found. "
+                f"Available systems: {available}"
+            )
+        return plugin.build_args(operation, task_data, params)
 
     def __repr__(self):
         return f"PluginRegistry({len(self.plugins)} plugins: {', '.join(self.plugins.keys())})"

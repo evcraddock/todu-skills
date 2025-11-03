@@ -48,11 +48,8 @@ This skill updates properties of tasks/issues in any system: status, priority, l
    - Warn if unsupported (e.g., labels on Todoist)
 
 4. **Route to Update Script**
-   - Use plugin registry to get script path
-   - Call system-specific update script:
-     - GitHub: `github/scripts/update-issue.py`
-     - Forgejo: `forgejo/scripts/update-issue.py`
-     - Todoist: `todoist/scripts/update-task.py`
+   - Use plugin registry to get script path and build arguments
+   - Call update script (system-agnostic via interface spec)
 
 5. **Report Results**
    - Show what was updated
@@ -94,7 +91,7 @@ The skill understands these natural language patterns:
 1. Parses: ID=20, update=status:inprogress
 2. Resolves ID 20 → github-evcraddock_todu-11
 3. System=github, repo=evcraddock/todu, number=11
-4. Calls `github/scripts/update-issue.py --repo evcraddock/todu --number 11 --status inprogress`
+4. Calls update script via registry.build_args()
 5. Shows: "✅ Updated issue #11 (evcraddock/todu) → Status: in-progress"
 
 ### Example 2: Close by Description
@@ -105,7 +102,7 @@ The skill understands these natural language patterns:
 1. Parses: description="auth bug", action=close
 2. Searches for "auth bug" → finds ID 15
 3. Resolves → forgejo-erik_vault-8
-4. Calls `forgejo/scripts/update-issue.py --repo erik/Vault --number 8 --close`
+4. Calls update script via registry
 5. Shows: "✅ Closed issue #8 (erik/Vault)"
 
 ### Example 3: Set Priority
@@ -171,14 +168,13 @@ def update_task():
     # 3. Validate updates
     validate_updates(updates, task['system'])
 
-    # 4. Get update script
+    # 4. Get script path and build args from interface
     registry = get_registry()
     script_path = registry.get_script_path(task['system'], 'update')
+    args = registry.build_args(task['system'], 'update',
+                                task_data=task, params=updates)
 
-    # 5. Build command
-    args = build_update_args(task, updates)
-
-    # 6. Call script
+    # 5. Call script (system-agnostic)
     result = subprocess.run([str(script_path)] + args, ...)
 
     # 7. Display result
@@ -187,29 +183,20 @@ def update_task():
 
 ## Script Interface
 
-All update scripts follow this interface:
+All update scripts are called via the plugin registry's interface system. The skill uses `registry.build_args(system, 'update', task_data=task, params=updates)` which automatically builds the correct arguments.
 
-**GitHub/Forgejo Input**:
-```bash
-$SCRIPT_PATH --repo "owner/repo" --number 15 \
-  [--status todo|inprogress|done] \
-  [--priority low|medium|high|urgent] \
-  [--close [--reason "not planned"]] \
-  [--reopen] \
-  [--add-label "bug"] \
-  [--remove-label "wontfix"]
+**System-agnostic approach:**
+```python
+# Works for ANY system
+registry = get_registry()
+script_path = registry.get_script_path(task['system'], 'update')
+args = registry.build_args(task['system'], 'update',
+                            task_data=task,
+                            params={'status': 'inprogress', 'priority': 'high'})
+result = subprocess.run([str(script_path)] + args, ...)
 ```
 
-**Todoist Input**:
-```bash
-$SCRIPT_PATH --task-id "abc123" \
-  [--status todo|inprogress|done] \
-  [--priority low|medium|high|urgent] \
-  [--complete] \
-  [--reopen]
-```
-
-**Output** (JSON to stdout):
+**Output** (JSON to stdout - same format for all systems):
 ```json
 {
   "updated": true,

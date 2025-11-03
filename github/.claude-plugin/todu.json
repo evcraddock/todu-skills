@@ -1,0 +1,66 @@
+{
+  "system": "github",
+  "displayName": "GitHub",
+  "capabilities": {
+    "taskManagement": true,
+    "comments": true,
+    "labels": true,
+    "assignees": true,
+    "milestones": true
+  },
+  "scripts": {
+    "create": "scripts/create-issue.py",
+    "update": "scripts/update-issue.py",
+    "sync": "scripts/sync-issues.py",
+    "view": "scripts/view-issue.py",
+    "comment": "scripts/create-comment.py"
+  },
+  "requirements": {
+    "env": ["GITHUB_TOKEN"],
+    "description": "Get your token from https://github.com/settings/tokens"
+  },
+  "interface": {
+    "identifierType": "repo-number",
+    "identifierFields": ["repo", "number"],
+    "operations": {
+      "create": {
+        "args": {
+          "repo": {"source": "repo", "flag": "--repo"},
+          "title": {"source": "param", "flag": "--title"},
+          "body": {"source": "param", "flag": "--body", "optional": true},
+          "labels": {"source": "param", "flag": "--labels", "optional": true},
+          "assignees": {"source": "param", "flag": "--assignees", "optional": true},
+          "priority": {"source": "param", "flag": "--priority", "optional": true}
+        }
+      },
+      "update": {
+        "args": {
+          "repo": {"source": "systemData.repo", "flag": "--repo"},
+          "issue": {"source": "systemData.number", "flag": "--issue"},
+          "status": {"source": "param", "flag": "--status", "optional": true},
+          "priority": {"source": "param", "flag": "--priority", "optional": true},
+          "close": {"source": "param", "flag": "--close", "optional": true},
+          "cancel": {"source": "param", "flag": "--cancel", "optional": true}
+        }
+      },
+      "sync": {
+        "args": {
+          "repo": {"source": "repo", "flag": "--repo"}
+        }
+      },
+      "view": {
+        "args": {
+          "repo": {"source": "systemData.repo", "flag": "--repo"},
+          "issue": {"source": "systemData.number", "flag": "--issue"}
+        }
+      },
+      "comment": {
+        "args": {
+          "repo": {"source": "systemData.repo", "flag": "--repo"},
+          "issue": {"source": "systemData.number", "flag": "--issue"},
+          "body": {"source": "param", "flag": "--body"}
+        }
+      }
+    }
+  }
+}

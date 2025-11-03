@@ -55,10 +55,8 @@ This skill creates new tasks/issues in any registered system with rich context f
 
 5. **Route to Create Script**
    - Use plugin registry to get script path
-   - Call system-specific create script:
-     - GitHub: `github/scripts/create-issue.py`
-     - Forgejo: `forgejo/scripts/create-issue.py`
-     - Todoist: `todoist/scripts/create-task.py`
+   - Use plugin registry to build arguments from interface spec
+   - Call create script (system-agnostic)
 
 6. **Display Confirmation**
    - Show created issue/task details
@@ -99,7 +97,7 @@ This skill creates new tasks/issues in any registered system with rich context f
    ```
    - Labels: "bug, auth"
    - Priority: "high"
-6. Calls `github/scripts/create-issue.py`
+6. Calls create script via registry.build_args()
 7. Shows: "✅ Created issue #42: Fix authentication timeout bug"
    URL: https://github.com/evcraddock/todu/issues/42
 
@@ -127,7 +125,7 @@ This skill creates new tasks/issues in any registered system with rich context f
    - Description: "Check pending PRs in todu and vault repos"
    - Priority: "medium"
    - Due date: "today"
-4. Calls `todoist/scripts/create-task.py`
+4. Calls create script via registry
 5. Shows: "✅ Created task: Review pull requests (todoist-home)"
 
 ### Example 4: Ambiguous System
@@ -205,12 +203,18 @@ def create_task():
     labels = prompt("Labels (comma-separated): ")
     priority = prompt("Priority (low/medium/high): ")
 
-    # 5. Get create script
+    # 5. Get script path and build args from interface
     registry = get_registry()
     script_path = registry.get_script_path(system, 'create')
+    args = registry.build_args(system, 'create', params={
+        'repo': repo,  # or 'project_id' for todoist
+        'title': title,
+        'body': description,
+        'labels': labels,
+        'priority': priority
+    })
 
-    # 6. Call script
-    args = build_create_args(repo, title, description, labels, priority)
+    # 6. Call script (system-agnostic)
     result = subprocess.run([str(script_path)] + args, ...)
 
     # 7. Display confirmation
@@ -221,28 +225,24 @@ def create_task():
 
 ## Script Interface
 
-All create scripts follow this interface:
+All create scripts are called via the plugin registry's interface system. The skill uses `registry.build_args(system, 'create', params={...})` which automatically builds the correct arguments based on each system's interface specification in `todu.json`.
 
-**GitHub/Forgejo Input**:
-```bash
-$SCRIPT_PATH --repo "owner/repo" \
-  --title "Fix auth bug" \
-  --body "Description here" \
-  [--labels "bug,priority:high"] \
-  [--assignees "@user1,@user2"] \
-  [--priority high]
+**System-agnostic approach:**
+```python
+# Works for ANY system (github, forgejo, todoist, future systems)
+registry = get_registry()
+script_path = registry.get_script_path(system, 'create')
+args = registry.build_args(system, 'create', params={
+    'repo': 'owner/repo',  # or 'project_id' for todoist
+    'title': 'Fix bug',
+    'body': 'Description',
+    'labels': 'bug',
+    'priority': 'high'
+})
+result = subprocess.run([str(script_path)] + args, ...)
 ```
 
-**Todoist Input**:
-```bash
-$SCRIPT_PATH --project-id "abc123" \
-  --title "Review PRs" \
-  --body "Description" \
-  [--priority high] \
-  [--due-date "2025-11-03"]
-```
-
-**Output** (JSON to stdout):
+**Output** (JSON to stdout - same format for all systems):
 ```json
 {
   "created": true,
@@ -254,22 +254,10 @@ $SCRIPT_PATH --project-id "abc123" \
 }
 ```
 
-## System-Specific Details
-
-### GitHub
-- Supports: labels, assignees, milestones, projects
-- Auto-detects from git remote
-- Rich git context in description
-
-### Forgejo
-- Supports: labels, assignees, milestones
-- Auto-detects from git remote
-- Rich git context in description
-
-### Todoist
-- Requires project ID or nickname
-- Supports: priority, due date, labels (as tags)
-- No git context (personal tasks)
+**Capability Differences** (queried from plugin capabilities, not hardcoded):
+- Check `plugin.capabilities` for what each system supports
+- Labels, assignees, milestones support varies by system
+- Use interface spec to know what arguments are available
 
 ## Prompting Strategy
 
@@ -289,9 +277,10 @@ $SCRIPT_PATH --project-id "abc123" \
    - Default: medium
    - Accept: low, medium, high, urgent
 
-5. **Assignees** (optional, GitHub/Forgejo only):
+5. **Assignees** (optional, check plugin.capabilities):
    - Accept @username format
    - Validate against repo collaborators
+   - Only prompt if system supports assignees
 
 ## Error Handling
 

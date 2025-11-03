@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-"""Shared utilities for managing Forgejo labels."""
+"""Shared utilities for managing Forgejo labels and base URL resolution."""
 
+import json
+import os
+import subprocess
+from pathlib import Path
 import requests
 
 # Valid status and priority values
@@ -17,6 +21,98 @@ LABEL_COLORS = {
     "priority:medium": "#a2eeef",
     "priority:high": "#d73a4a"
 }
+
+
+def load_projects():
+    """Load projects from projects.json."""
+    projects_file = Path.home() / ".local" / "todu" / "projects.json"
+    if not projects_file.exists():
+        return {}
+    try:
+        with open(projects_file) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def get_base_url_from_registry(repo_name):
+    """Get base URL for a Forgejo repo from projects registry."""
+    projects = load_projects()
+    for nickname, info in projects.items():
+        if info.get('system') == 'forgejo' and info.get('repo') == repo_name:
+            return info.get('baseUrl')
+    return None
+
+
+def get_forgejo_url(repo_name=None, cwd=None):
+    """Get Forgejo base URL from projects registry, environment, or git remote.
+
+    Args:
+        repo_name: Repository in owner/repo format (optional)
+        cwd: Working directory for git commands (optional)
+
+    Returns:
+        str: Base URL for Forgejo instance
+    """
+    # First try projects registry if repo_name provided
+    if repo_name:
+        base_url = get_base_url_from_registry(repo_name)
+        if base_url:
+            return base_url.rstrip('/')
+
+    # Then check environment variable
+    if os.environ.get('FORGEJO_URL'):
+        return os.environ['FORGEJO_URL'].rstrip('/')
+
+    # Try to extract from git remote
+    try:
+        result = subprocess.run(
+            ['git', 'remote', 'get-url', 'origin'],
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=cwd
+        )
+        remote_url = result.stdout.strip()
+
+        # Parse URL to extract base domain
+        # Handle both SSH and HTTPS URLs
+        if remote_url.startswith('ssh://git@'):
+            # SSH format: ssh://git@forgejo.example.com/owner/repo.git
+            host = remote_url.replace('ssh://git@', '').split('/')[0]
+            base_url = f"https://{host}"
+        elif remote_url.startswith('git@'):
+            # SSH format: git@forgejo.example.com:owner/repo.git
+            host = remote_url.split('@')[1].split(':')[0]
+            base_url = f"https://{host}"
+        elif remote_url.startswith('http'):
+            # HTTPS format: https://forgejo.example.com/owner/repo.git
+            from urllib.parse import urlparse
+            parsed = urlparse(remote_url)
+            base_url = f"{parsed.scheme}://{parsed.netloc}"
+        else:
+            base_url = None
+
+        # Reject github.com
+        if base_url and 'github.com' in base_url:
+            print(json.dumps({
+                "error": "This appears to be a GitHub repository, not Forgejo",
+                "help": "Use the github plugin for GitHub repositories"
+            }), file=sys.stderr)
+            import sys
+            sys.exit(1)
+
+        if base_url:
+            return base_url
+    except Exception:
+        pass
+
+    print(json.dumps({
+        "error": "Could not detect Forgejo URL from git remote",
+        "help": "Make sure you are in a git repository with a Forgejo remote"
+    }), file=sys.stderr)
+    import sys
+    sys.exit(1)
 
 
 def ensure_labels_exist(base_url, headers, repo_name, required_labels):

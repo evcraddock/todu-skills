@@ -45,11 +45,8 @@ This skill adds comments to tasks/issues in any system.
    - Support markdown formatting
 
 4. **Route to Comment Script**
-   - Use plugin registry to get script path
-   - Call system-specific comment script:
-     - GitHub: `github/scripts/create-comment.py`
-     - Forgejo: `forgejo/scripts/create-comment.py`
-     - Todoist: `todoist/scripts/create-comment.py`
+   - Use plugin registry to get script path and build arguments
+   - Call comment script (system-agnostic via interface spec)
 
 5. **Display Confirmation**
    - Show that comment was added
@@ -66,7 +63,7 @@ This skill adds comments to tasks/issues in any system.
 1. Parses: ID=20, body="Fixed in PR #42"
 2. Resolves ID 20 → github-evcraddock_todu-11
 3. System=github, repo=evcraddock/todu, number=11
-4. Calls `github/scripts/create-comment.py --repo evcraddock/todu --number 11 --body "Fixed in PR #42"`
+4. Calls comment script via registry.build_args()
 5. Shows:
 ```
 ✅ Added comment to issue #11 (evcraddock/todu)
@@ -161,17 +158,13 @@ def add_comment():
     if not body:
         body = prompt_multiline("Enter comment (markdown supported):")
 
-    # 4. Get comment script from registry
+    # 4. Get script path and build args from interface
     registry = get_registry()
     script_path = registry.get_script_path(task['system'], 'comment')
+    args = registry.build_args(task['system'], 'comment',
+                                task_data=task, params={'body': body})
 
-    # 5. Build command
-    if task['system'] == 'todoist':
-        args = ['--task-id', task['task_id'], '--body', body]
-    else:
-        args = ['--repo', task['repo'], '--number', str(task['number']), '--body', body]
-
-    # 6. Call script
+    # 5. Call script (system-agnostic)
     result = subprocess.run([str(script_path)] + args, ...)
 
     # 7. Display confirmation
@@ -183,19 +176,20 @@ def add_comment():
 
 ## Script Interface
 
-All comment scripts follow this interface:
+All comment scripts are called via the plugin registry's interface system. The skill uses `registry.build_args(system, 'comment', task_data=task, params={'body': body})` which automatically builds the correct arguments.
 
-**GitHub/Forgejo Input**:
-```bash
-$SCRIPT_PATH --repo "owner/repo" --number 15 --body "Comment text here"
+**System-agnostic approach:**
+```python
+# Works for ANY system
+registry = get_registry()
+script_path = registry.get_script_path(task['system'], 'comment')
+args = registry.build_args(task['system'], 'comment',
+                            task_data=task,
+                            params={'body': 'Comment text here'})
+result = subprocess.run([str(script_path)] + args, ...)
 ```
 
-**Todoist Input**:
-```bash
-$SCRIPT_PATH --task-id "abc123" --body "Comment text here"
-```
-
-**Output** (JSON to stdout):
+**Output** (JSON to stdout - same format for all systems):
 ```json
 {
   "created": true,
@@ -244,22 +238,7 @@ When prompting for comment body:
 
 ## System Capabilities
 
-### GitHub
-- ✅ Full markdown support
-- ✅ @mentions
-- ✅ Issue references (#123)
-- ✅ Code blocks with syntax highlighting
-
-### Forgejo
-- ✅ Full markdown support
-- ✅ @mentions
-- ✅ Issue references (#123)
-- ✅ Code blocks
-
-### Todoist
-- ⚠️ Limited formatting (plain text)
-- ❌ No markdown rendering
-- ✅ Still stores comment
+Comment capabilities vary by system. Check `plugin.capabilities.comments` to determine support level. All systems support basic comments, but markdown rendering and features differ.
 
 ## Success Criteria
 

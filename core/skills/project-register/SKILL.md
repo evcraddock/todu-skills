@@ -53,12 +53,17 @@ This skill registers a project (GitHub repo, Forgejo repo, or Todoist project) i
    - Get user's choice
    - If still conflicts, ask again
 
-5. **Register the Project**
+5. **Collect Additional Required Info**
+   - For Forgejo projects: Ask for base URL (e.g., https://forgejo.caradoc.com)
+   - This is required for Forgejo to know which instance to connect to
+
+6. **Register the Project**
    - Call `$CLAUDE_PLUGIN_ROOT/core/scripts/register-project.py` with:
      - `--nickname <chosen-nickname>`
      - `--system <github|forgejo|todoist>`
      - `--repo <owner/repo>` (for GitHub/Forgejo)
      - `--project-id <id>` (for Todoist)
+     - `--base-url <url>` (for Forgejo)
    - Return success with registration details
 
 ## Example Interactions
@@ -113,11 +118,18 @@ $CLAUDE_PLUGIN_ROOT/core/scripts/list-projects.py --format json | grep "projectI
 Register new project:
 
 ```bash
-# GitHub/Forgejo
+# GitHub
 $CLAUDE_PLUGIN_ROOT/core/scripts/register-project.py \
   --nickname <nickname> \
-  --system <github|forgejo> \
+  --system github \
   --repo <owner/repo>
+
+# Forgejo (requires base URL)
+$CLAUDE_PLUGIN_ROOT/core/scripts/register-project.py \
+  --nickname <nickname> \
+  --system forgejo \
+  --repo <owner/repo> \
+  --base-url <https://forgejo.instance.com>
 
 # Todoist
 $CLAUDE_PLUGIN_ROOT/core/scripts/register-project.py \

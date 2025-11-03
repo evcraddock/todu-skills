@@ -46,12 +46,9 @@ This skill syncs tasks/issues from any registered system (GitHub, Forgejo, Todoi
    - If already registered, continues immediately
    - If not registered, registers with smart nickname suggestion
 
-3. **Route to Appropriate Sync Script**
-   - Use plugin registry to get correct script path for system
-   - Call system-specific sync script:
-     - GitHub: `github/scripts/sync-issues.py`
-     - Forgejo: `forgejo/scripts/sync-issues.py`
-     - Todoist: `todoist/scripts/sync-tasks.py`
+3. **Route to Sync Script**
+   - Use plugin registry to get script path and build arguments
+   - Call sync script (system-agnostic via interface spec)
    - Script fetches from API and normalizes to standard format
    - Saves to `~/.local/todu/issues/*.json`
    - Updates unified ID registry
@@ -81,7 +78,7 @@ The skill determines which system and project to sync using this priority:
 **Skill**:
 1. Resolves "vault" → {system: forgejo, repo: erik/Vault}
 2. Gets script path from plugin registry
-3. Calls `forgejo/scripts/sync-issues.py --repo erik/Vault`
+3. Calls sync script via registry.build_args()
 4. Shows: "✅ Synced 12 issues from Forgejo (erik/Vault) - 2 new, 1 updated"
 
 ### Example 2: Sync from Git Repository
@@ -92,7 +89,7 @@ The skill determines which system and project to sync using this priority:
 1. Detects git remote → github.com:evcraddock/todu
 2. Determines system: github, repo: evcraddock/todu
 3. Ensures project registered as "todu"
-4. Calls `github/scripts/sync-issues.py --repo evcraddock/todu`
+4. Calls sync script via registry
 5. Shows: "✅ Synced 1 issue from GitHub (evcraddock/todu) - 0 new, 0 updated"
 
 ### Example 3: Sync Explicit Repo
@@ -102,7 +99,7 @@ The skill determines which system and project to sync using this priority:
 **Skill**:
 1. Parses explicit format → system: github, repo: evcraddock/rott
 2. Ensures project registered
-3. Calls `github/scripts/sync-issues.py --repo evcraddock/rott`
+3. Calls sync script via registry
 4. Shows sync results
 
 ### Example 4: Ambiguous Request
@@ -154,16 +151,13 @@ def sync_task():
     # 3. Ensure project is registered
     # Call core:project-register skill
 
-    # 4. Get script path from registry
+    # 4. Get script path and build args from interface
     registry = get_registry()
     script_path = registry.get_script_path(system, 'sync')
+    args = registry.build_args(system, 'sync', params={'repo': repo})
 
-    # 5. Call sync script
-    result = subprocess.run(
-        [str(script_path), '--repo', repo],
-        capture_output=True,
-        text=True
-    )
+    # 5. Call sync script (system-agnostic)
+    result = subprocess.run([str(script_path)] + args, ...)
 
     # 6. Parse and display results
     output = json.loads(result.stdout)
@@ -172,14 +166,18 @@ def sync_task():
 
 ## Script Interface
 
-All sync scripts follow this interface:
+All sync scripts are called via the plugin registry's interface system. The skill uses `registry.build_args(system, 'sync', params={'repo': repo})` which automatically builds the correct arguments.
 
-**Input**:
-```bash
-$SCRIPT_PATH --repo "identifier" [--since "timestamp"]
+**System-agnostic approach:**
+```python
+# Works for ANY system
+registry = get_registry()
+script_path = registry.get_script_path(system, 'sync')
+args = registry.build_args(system, 'sync', params={'repo': 'owner/repo'})
+result = subprocess.run([str(script_path)] + args, ...)
 ```
 
-**Output** (JSON to stdout):
+**Output** (JSON to stdout - same format for all systems):
 ```json
 {
   "synced": 45,

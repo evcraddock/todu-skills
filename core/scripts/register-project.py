@@ -37,7 +37,7 @@ def save_projects(projects):
         print(json.dumps({"error": f"Failed to save projects.json: {e}"}), file=sys.stderr)
         return False
 
-def register_project(nickname, system, repo=None, project_id=None):
+def register_project(nickname, system, repo=None, project_id=None, base_url=None):
     """Register a project with a nickname."""
 
     # Validate system
@@ -61,6 +61,13 @@ def register_project(nickname, system, repo=None, project_id=None):
         }), file=sys.stderr)
         return 1
 
+    # Validate base_url for forgejo
+    if system == 'forgejo' and not base_url:
+        print(json.dumps({
+            "error": "--base-url is required for system 'forgejo'"
+        }), file=sys.stderr)
+        return 1
+
     # Load existing projects
     projects = load_projects()
 
@@ -79,6 +86,10 @@ def register_project(nickname, system, repo=None, project_id=None):
     elif repo:
         project_data["repo"] = repo
 
+    # Store base_url for forgejo
+    if base_url:
+        project_data["baseUrl"] = base_url
+
     # Update projects
     projects[nickname] = project_data
 
@@ -94,6 +105,8 @@ def register_project(nickname, system, repo=None, project_id=None):
         "system": system,
         "repo": project_id if system == 'todoist' else repo
     }
+    if base_url:
+        result["baseUrl"] = base_url
     print(json.dumps(result, indent=2))
     return 0
 
@@ -104,10 +117,11 @@ def main():
                         help='System type')
     parser.add_argument('--repo', help='Repository in owner/name format (for GitHub/Forgejo)')
     parser.add_argument('--project-id', help='Project ID (for Todoist)')
+    parser.add_argument('--base-url', help='Base URL for Forgejo instance (required for Forgejo)')
 
     args = parser.parse_args()
 
-    return register_project(args.nickname, args.system, args.repo, args.project_id)
+    return register_project(args.nickname, args.system, args.repo, args.project_id, args.base_url)
 
 if __name__ == '__main__':
     sys.exit(main())

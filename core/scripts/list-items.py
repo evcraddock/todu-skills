@@ -73,7 +73,7 @@ def load_items_from_legacy():
 
     return items
 
-def list_items(system=None, state=None, status=None, assignee=None, labels=None, project_id=None, output_format='json'):
+def list_items(system=None, state=None, status=None, assignee=None, labels=None, project=None, output_format='json'):
     """List items from local cache with optional filtering."""
 
     # Try consolidated structure first, fall back to legacy
@@ -84,6 +84,9 @@ def list_items(system=None, state=None, status=None, assignee=None, labels=None,
     if not items:
         print(json.dumps({"error": "No cached items found. Run sync first."}), file=sys.stderr)
         return 1
+
+    # Load projects registry for nickname resolution
+    projects = load_projects()
 
     # Apply filters
     if system:
@@ -102,8 +105,21 @@ def list_items(system=None, state=None, status=None, assignee=None, labels=None,
         label_list = labels.split(',')
         items = [i for i in items if any(l in i.get('labels', []) for l in label_list)]
 
-    if project_id:
-        items = [i for i in items if i.get('systemData', {}).get('project_id') == project_id]
+    if project:
+        # Resolve project nickname to repo/project_id
+        if project not in projects:
+            print(json.dumps({"error": f"Project '{project}' not found in registry"}), file=sys.stderr)
+            return 1
+
+        project_info = projects[project]
+        project_system = project_info.get('system')
+        project_identifier = project_info.get('repo') or project_info.get('projectId')
+
+        # Filter items by matching repo or project_id
+        items = [i for i in items
+                if i.get('system') == project_system and
+                (i.get('systemData', {}).get('repo') == project_identifier or
+                 i.get('systemData', {}).get('project_id') == project_identifier)]
 
     # Sort by updated date (newest first), with fallback to created date
     items.sort(key=lambda x: x.get('updatedAt') or x.get('createdAt', ''), reverse=True)
@@ -112,9 +128,6 @@ def list_items(system=None, state=None, status=None, assignee=None, labels=None,
     if output_format == 'json':
         print(json.dumps(items, indent=2))
     elif output_format == 'markdown':
-        # Load projects registry for nickname resolution
-        projects = load_projects()
-
         print(f"Found {len(items)} item(s):\n")
         for item in items:
             system_name = item.get('system', 'unknown')
@@ -124,15 +137,12 @@ def list_items(system=None, state=None, status=None, assignee=None, labels=None,
             # Show system prefix
             print(f"[{system_name.upper()}] #{item_id}: {item['title']}")
 
-            # Show project for Todoist tasks
-            if system_name == 'todoist':
-                project_id = item.get('systemData', {}).get('project_id')
-                if project_id:
-                    nickname = resolve_project_nickname(project_id, 'todoist', projects)
-                    if nickname:
-                        print(f"  Project: {nickname}")
-                    else:
-                        print(f"  Project ID: {project_id}")
+            # Show project nickname if available
+            project_identifier = item.get('systemData', {}).get('repo') or item.get('systemData', {}).get('project_id')
+            if project_identifier:
+                nickname = resolve_project_nickname(project_identifier, system_name, projects)
+                if nickname:
+                    print(f"  Project: {nickname}")
 
             if labels_str:
                 print(f"  Labels: {labels_str}")
@@ -155,7 +165,7 @@ def main():
     parser.add_argument('--status', help='Filter by workflow status (e.g., backlog, in-progress, done, canceled)')
     parser.add_argument('--assignee', help='Filter by assignee username')
     parser.add_argument('--labels', help='Comma-separated list of labels to filter by')
-    parser.add_argument('--project-id', help='Filter by project ID (Todoist)')
+    parser.add_argument('--project', help='Filter by project nickname (from project registry)')
     parser.add_argument('--format', choices=['json', 'markdown'], default='json', help='Output format')
 
     args = parser.parse_args()
@@ -166,7 +176,7 @@ def main():
         status=args.status,
         assignee=args.assignee,
         labels=args.labels,
-        project_id=args.project_id,
+        project=args.project,
         output_format=args.format
     )
 

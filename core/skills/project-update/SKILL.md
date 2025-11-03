@@ -5,9 +5,11 @@ description: MANDATORY skill for updating registered projects. NEVER call script
 
 # Update Registered Project
 
-**⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY update project request.**
+**⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY update
+project request.**
 
-**NEVER EVER call `update-project.py` directly. This skill provides essential logic beyond just running the script:**
+**NEVER EVER call `update-project.py` directly. This skill provides essential
+logic beyond just running the script:**
 
 - Showing current project details
 - Using AskUserQuestion to let user select which fields to update
@@ -15,11 +17,13 @@ description: MANDATORY skill for updating registered projects. NEVER call script
 - Validating updates before applying
 - Providing clear feedback about changes
 
-Even if you've invoked this skill before in the conversation, you MUST invoke it again for each new update request.
+Even if you've invoked this skill before in the conversation, you MUST invoke
+it again for each new update request.
 
 ---
 
-This skill updates fields of a registered project in the project registry at `~/.local/todu/projects.json`.
+This skill updates fields of a registered project in the project registry at
+`~/.local/todu/projects.json`.
 
 ## When to Use
 
@@ -64,10 +68,10 @@ This skill updates fields of a registered project in the project registry at `~/
 - Loads projects to find 'ishould'
 - Shows current details:
 
-  ```
+  ```text
   Current project details:
   - Nickname: ishould
-  - System: github
+  - System: forgejo
   - Repo: some-other/repo
   ```
 
@@ -80,7 +84,7 @@ This skill updates fields of a registered project in the project registry at `~/
 - User provides: "erik/ishould"
 - Shows confirmation:
 
-  ```
+  ```text
   Changes to apply:
   - repo: some-other/repo -> erik/ishould
   ```
@@ -125,7 +129,7 @@ Returns JSON on success:
     "repo: some-other/repo -> erik/ishould"
   ],
   "project": {
-    "system": "github",
+    "system": "forgejo",
     "repo": "erik/ishould",
     "addedAt": "2025-10-31T18:30:29.101649+00:00"
   }
@@ -158,7 +162,7 @@ AskUserQuestion(
             },
             {
                 "label": "System",
-                "description": f"Current: {current_system} (github/forgejo/todoist)"
+                "description": f"Current: {current_system}"
             },
             {
                 "label": "Repository",
@@ -166,7 +170,7 @@ AskUserQuestion(
             },
             {
                 "label": "Project ID",
-                "description": f"Current: {current_project_id or 'none'} (for Todoist)"
+                "description": f"Current: {current_project_id or 'none'}"
             }
         ]
     }]
@@ -179,32 +183,20 @@ For each selected field:
 
 **Nickname**: Ask user for new nickname (text input)
 
-**System**: Use AskUserQuestion:
-
-```python
-AskUserQuestion(
-    questions=[{
-        "question": "What system should this project use?",
-        "header": "System Type",
-        "multiSelect": false,
-        "options": [
-            {"label": "GitHub", "description": "GitHub repository"},
-            {"label": "Forgejo", "description": "Forgejo/Gitea repository"},
-            {"label": "Todoist", "description": "Todoist project"}
-        ]
-    }]
-)
-```
+**System**: Ask user for system type. Available systems are discovered dynamically
+from registered plugins. Each plugin defines its system type in its `todu.json`
+configuration.
 
 **Repository**: Ask user for new repo in owner/repo format
 
-**Project ID**: Ask user for new project ID (Todoist)
+**Project ID**: Ask user for new project ID (for task management systems that
+use numeric project IDs)
 
 ## Confirmation Flow
 
 Before applying updates, show summary and confirm:
 
-```
+```text
 Changes to apply:
 - nickname: ishould -> myproject
 - repo: some-other/repo -> erik/ishould
@@ -239,4 +231,4 @@ Natural language queries the skill should understand:
 - Confirmation is required before applying changes
 - User can always cancel during field selection or confirmation
 - System validation ensures only valid systems are accepted
-- Repo format should be owner/repo for GitHub/Forgejo
+- Repo format should be owner/repo for repository-based systems

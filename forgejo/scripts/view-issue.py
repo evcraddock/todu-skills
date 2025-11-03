@@ -15,56 +15,15 @@ from pathlib import Path
 from datetime import datetime
 import requests
 
+# Import shared utilities
+script_dir = Path(__file__).parent
+sys.path.insert(0, str(script_dir))
+from label_utils import get_forgejo_url
+
 # Add path to core scripts for id_registry
 core_scripts_path = Path(__file__).parent.parent.parent / "core" / "scripts"
 sys.path.insert(0, str(core_scripts_path))
 from id_registry import lookup_filename
-
-def get_forgejo_url(cwd=None):
-    """Get Forgejo base URL from git remote in cwd."""
-    # Try to extract from git remote in the current directory
-    try:
-        result = subprocess.run(
-            ['git', 'remote', 'get-url', 'origin'],
-            capture_output=True,
-            text=True,
-            check=True,
-            cwd=cwd
-        )
-        remote_url = result.stdout.strip()
-
-        # Parse URL to extract base domain
-        # Handle both SSH and HTTPS URLs
-        if remote_url.startswith('git@'):
-            # SSH format: git@forgejo.example.com:owner/repo.git
-            host = remote_url.split('@')[1].split(':')[0]
-            base_url = f"https://{host}"
-        elif remote_url.startswith('http'):
-            # HTTPS format: https://forgejo.example.com/owner/repo.git
-            from urllib.parse import urlparse
-            parsed = urlparse(remote_url)
-            base_url = f"{parsed.scheme}://{parsed.netloc}"
-        else:
-            base_url = None
-
-        # Reject github.com
-        if base_url and 'github.com' in base_url:
-            print(json.dumps({
-                "error": "This appears to be a GitHub repository, not Forgejo",
-                "help": "Use the github plugin for GitHub repositories"
-            }), file=sys.stderr)
-            sys.exit(1)
-
-        if base_url:
-            return base_url
-    except Exception:
-        pass
-
-    print(json.dumps({
-        "error": "Could not detect Forgejo URL from git remote",
-        "help": "Make sure you are in a git repository with a Forgejo remote"
-    }), file=sys.stderr)
-    sys.exit(1)
 
 def format_issue_markdown(issue, comments, repo_name):
     """Format issue and comments as markdown."""
@@ -123,7 +82,7 @@ def view_issue(repo_name, issue_number):
         print(json.dumps({"error": "FORGEJO_TOKEN environment variable not set"}), file=sys.stderr)
         sys.exit(1)
 
-    base_url = get_forgejo_url()
+    base_url = get_forgejo_url(repo_name)
 
     try:
         headers = {

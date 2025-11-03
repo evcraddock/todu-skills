@@ -17,49 +17,12 @@ import requests
 # Import shared label utilities
 script_dir = Path(__file__).parent
 sys.path.insert(0, str(script_dir))
-from label_utils import ensure_labels_exist, VALID_STATUSES, VALID_PRIORITIES
+from label_utils import ensure_labels_exist, VALID_STATUSES, VALID_PRIORITIES, get_forgejo_url
 
 # Add path to core scripts for id_registry
 core_scripts_path = Path(__file__).parent.parent.parent / "core" / "scripts"
 sys.path.insert(0, str(core_scripts_path))
 from id_registry import lookup_filename
-
-def get_forgejo_url():
-    """Get Forgejo base URL from environment or git remote."""
-    # First check environment variable
-    if os.environ.get('FORGEJO_URL'):
-        return os.environ['FORGEJO_URL'].rstrip('/')
-
-    # Try to extract from git remote
-    try:
-        result = subprocess.run(
-            ['git', 'remote', 'get-url', 'origin'],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        remote_url = result.stdout.strip()
-
-        # Parse URL to extract base domain
-        # Handle both SSH and HTTPS URLs
-        if remote_url.startswith('ssh://git@'):
-            # SSH format: ssh://git@forgejo.example.com/owner/repo.git
-            host = remote_url.replace('ssh://git@', '').split('/')[0]
-            return f"https://{host}"
-        elif remote_url.startswith('git@'):
-            # SSH format: git@forgejo.example.com:owner/repo.git
-            host = remote_url.split('@')[1].split(':')[0]
-            return f"https://{host}"
-        elif remote_url.startswith('http'):
-            # HTTPS format: https://forgejo.example.com/owner/repo.git
-            from urllib.parse import urlparse
-            parsed = urlparse(remote_url)
-            return f"{parsed.scheme}://{parsed.netloc}"
-    except Exception:
-        pass
-
-    print(json.dumps({"error": "FORGEJO_URL environment variable not set and could not detect from git remote"}), file=sys.stderr)
-    sys.exit(1)
 
 def update_issue(repo_name, issue_number, status=None, priority=None, close=False, cancel=False, title=None, body=None):
     """Update a Forgejo issue's status, priority, state, title, or body."""
@@ -68,7 +31,7 @@ def update_issue(repo_name, issue_number, status=None, priority=None, close=Fals
         print(json.dumps({"error": "FORGEJO_TOKEN environment variable not set"}), file=sys.stderr)
         sys.exit(1)
 
-    base_url = get_forgejo_url()
+    base_url = get_forgejo_url(repo_name)
 
     try:
         headers = {

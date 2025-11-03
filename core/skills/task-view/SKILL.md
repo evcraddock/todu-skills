@@ -43,11 +43,8 @@ This skill displays full details of a task/issue from any system, including titl
    - Get repo/project identifier
 
 3. **Fetch Fresh Data**
-   - Use plugin registry to get view script path
-   - Call system-specific view script:
-     - GitHub: `github/scripts/view-issue.py`
-     - Forgejo: `forgejo/scripts/view-issue.py`
-     - Todoist: `todoist/scripts/view-task.py`
+   - Use plugin registry to get script path and build arguments
+   - Call view script (system-agnostic via interface spec)
    - Script fetches fresh data from API (not cache)
    - Returns full details including comments
 
@@ -64,7 +61,7 @@ This skill displays full details of a task/issue from any system, including titl
 **User**: "view issue 20"
 - Looks up ID 20 in registry
 - Finds `github-evcraddock_todu-11.json`
-- Calls `github/scripts/view-issue.py --repo evcraddock/todu --number 11`
+- Calls view script via registry.build_args()
 
 ### By System-Specific ID
 **User**: "show github #15"
@@ -88,7 +85,7 @@ This skill displays full details of a task/issue from any system, including titl
 **Skill**:
 1. Looks up unified ID 20 → github-evcraddock_todu-11.json
 2. Parses: system=github, repo=evcraddock/todu, number=11
-3. Calls `github/scripts/view-issue.py --repo evcraddock/todu --number 11`
+3. Calls view script via registry
 4. Displays:
 
 ```
@@ -142,24 +139,19 @@ def view_task():
     # 1. Get identifier from user message
     identifier = extract_from_user_message()  # "20", "github #15", "auth bug"
 
-    # 2. Resolve to system + repo + number
+    # 2. Resolve to system + task_data
     try:
         task = resolve_task(identifier)
     except AmbiguousTaskError as e:
         # Prompt user to select from matches
         task = prompt_user_to_select(e.matches)
 
-    # 3. Get view script from registry
+    # 3. Get plugin and build args from interface spec
     registry = get_registry()
     script_path = registry.get_script_path(task['system'], 'view')
+    args = registry.build_args(task['system'], 'view', task_data=task)
 
-    # 4. Call view script
-    if task['system'] == 'todoist':
-        # Todoist uses task IDs, not numbers
-        args = ['--task-id', task['task_id']]
-    else:
-        args = ['--repo', task['repo'], '--number', str(task['number'])]
-
+    # 4. Call view script (system-agnostic)
     result = subprocess.run([str(script_path)] + args, ...)
 
     # 5. Display formatted output
@@ -168,19 +160,18 @@ def view_task():
 
 ## Script Interface
 
-All view scripts follow this interface:
+All view scripts are called via the plugin registry's interface system. The skill uses `registry.build_args(system, 'view', task_data=task)` which automatically builds the correct arguments based on the system's interface specification in `todu.json`.
 
-**GitHub/Forgejo Input**:
-```bash
-$SCRIPT_PATH --repo "owner/repo" --number 15
+**Example (no hardcoded system checks needed):**
+```python
+# Works for ANY system (github, forgejo, todoist, future systems)
+registry = get_registry()
+script_path = registry.get_script_path(task['system'], 'view')
+args = registry.build_args(task['system'], 'view', task_data=task)
+result = subprocess.run([str(script_path)] + args, ...)
 ```
 
-**Todoist Input**:
-```bash
-$SCRIPT_PATH --task-id "abc123xyz"
-```
-
-**Output** (JSON to stdout):
+**Output** (JSON to stdout - same format for all systems):
 ```json
 {
   "id": 20,

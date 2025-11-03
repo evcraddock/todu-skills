@@ -1,121 +1,127 @@
 ---
 name: task-search
-description: MANDATORY skill for searching tasks and issues across all systems (GitHub, Forgejo, Todoist). NEVER call scripts/list-items.py directly - ALWAYS use this skill via the Skill tool. Use when user wants to find, list, show, or search tasks/issues. (plugin:core@todu)
+description: MANDATORY skill for searching tasks and issues across all registered projects. Use when user wants to find, list, show, or search tasks/issues. (plugin:core@todu)
 ---
 
 # Search Tasks and Issues
 
 **⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY search request.**
 
-**NEVER EVER call `list-items.py` directly. This skill provides essential logic beyond just running the script:**
+**This skill provides essential logic beyond just running scripts:**
 
 - Parsing natural language search criteria from user query
 - Prompting for clarification when filters are ambiguous
-- Detecting system from git remote context
+- Resolving project nicknames from the registry
 - Formatting results in user-friendly display
 - Detecting stale cache and suggesting sync
 - Handling empty results gracefully
-- Supporting cross-system searches
+- Supporting cross-project searches
 
-Even if you've invoked this skill before in the conversation, you MUST invoke it again for each new search request.
+Even if you've invoked this skill before in the conversation, you MUST invoke
+it again for each new search request.
 
 ---
 
-This skill searches locally cached tasks and issues across all systems (GitHub, Forgejo, Todoist) with filtering capabilities.
+This skill searches locally cached tasks and issues across all registered
+projects with filtering capabilities.
 
 ## When to Use
 
 - User explicitly mentions searching/listing/finding tasks or issues
-- User wants to search without specifying a system (searches all)
-- User wants to search a specific system (GitHub, Forgejo, Todoist)
+- User wants to search across all projects
+- User wants to search a specific project by nickname
 - Fast queries without hitting API (reads from local cache)
 
 ## What This Skill Does
 
-1. **Determine System Context**
-   - If user mentions "GitHub", "Forgejo", or "Todoist" - filter to that system
-   - If in a git repo - detect remote and prefer that system's results
-   - Otherwise - search ALL systems and display unified results
+1. **Determine Project Context**
+   - If user mentions a project nickname - filter to that project
+   - If in a git repo - detect which registered project it belongs to
+   - Otherwise - search ALL projects and display unified results
 
 2. **Parse Search Criteria**
    - Extract filters from user query
    - Prompt for clarification if needed
-   - Common filters: system, status, assignee, labels, project-id
+   - Common filters: project, status, assignee, labels
 
 3. **Search Local Cache**
-   - Call `$PLUGIN_DIR/scripts/list-items.py` with filters
+   - Invoke list-items script through plugin registry
    - Script reads from `~/.local/todu/issues/`
    - Returns matching items in requested format
 
 4. **Display Results**
-   - Show items in readable format with system prefix: `[GITHUB]`, `[FORGEJO]`, `[TODOIST]`
-   - Include key details: number, title, status, labels
+   - Show items in readable format
+   - Include key details: number, title, status, labels, project
    - Provide URLs for easy access
-   - Group by system if showing multiple systems
+   - Group by project if showing multiple projects
 
 ## Example Interactions
 
 **User**: "Show me my open tasks"
 **Skill**:
 
-- Detects git remote (if available) to determine context
-- Calls: `list-items.py --status open --format markdown`
+- Detects current project context (if in a git repo)
+- Invokes: `list-items --status open --format markdown`
 - Displays:
 
-  ```
+  ```text
   Found 31 open items:
 
-  [GITHUB] #16: Fix Date format in daily report (priority:high)
-  [FORGEJO] #11: Create skill for downloading daily report (priority:high)
-  [TODOIST] Implement dark mode (enhancement, priority:medium)
+  #16: Fix Date format in daily report (priority:high)
+    Project: todu
+  #11: Create skill for downloading daily report (priority:high)
+    Project: vault
+  Implement dark mode (enhancement, priority:medium)
+    Project: daily
   ...
   ```
 
-**User**: "Find my open GitHub bugs"
+**User**: "Find bugs in the vault project"
 **Skill**:
 
-- Extracts: system=github, status=open, labels=bug
-- Calls: `list-items.py --system github --status open --labels bug --format markdown`
-- Shows filtered results from GitHub only
+- Extracts: project=vault, labels=bug
+- Invokes: `list-items --project vault --labels bug --format markdown`
+- Shows filtered results from vault project
 
 **User**: "Show high priority issues"
 **Skill**:
 
-- Searches for label="priority:high" across all systems
-- Displays results grouped by system
+- Searches for label="priority:high" across all projects
+- Displays results grouped by project
 
-**User**: "List my Todoist tasks in project X"
+**User**: "List vault issues"
 **Skill**:
 
-- Prompts: "What's the project ID?" (or looks up if known)
-- Calls: `list-items.py --system todoist --project-id 12345 --format markdown`
-- Displays: Filtered task list from Todoist
+- Resolves "vault" from project registry
+- Invokes: `list-items --project vault --format markdown`
+- Displays: All issues from the vault project
 
 ## Script Interface
 
-```bash
-# Search all systems
-$PLUGIN_DIR/scripts/list-items.py --format markdown
+The script path is defined in the plugin's `todu.json` file. Invoke through
+the plugin registry.
 
-# Filter by specific system
-$PLUGIN_DIR/scripts/list-items.py --system github --format markdown
-$PLUGIN_DIR/scripts/list-items.py --system forgejo --format markdown
-$PLUGIN_DIR/scripts/list-items.py --system todoist --format markdown
+Common usage patterns:
+
+```bash
+# Search all projects
+list-items --format markdown
+
+# Filter by specific project
+list-items --project vault --format markdown
+list-items --project todu --format markdown
 
 # Filter by status
-$PLUGIN_DIR/scripts/list-items.py --status open --format markdown
+list-items --status open --format markdown
 
 # Filter by labels
-$PLUGIN_DIR/scripts/list-items.py --labels "bug,priority:high" --format markdown
+list-items --labels "bug,priority:high" --format markdown
 
 # Filter by assignee
-$PLUGIN_DIR/scripts/list-items.py --assignee "username" --format markdown
-
-# Filter by project (Todoist)
-$PLUGIN_DIR/scripts/list-items.py --system todoist --project-id "2203306141" --format markdown
+list-items --assignee "username" --format markdown
 
 # Combine filters
-$PLUGIN_DIR/scripts/list-items.py --system github --status open --labels bug --format markdown
+list-items --project vault --status open --labels bug --format markdown
 ```
 
 Returns JSON array:
@@ -124,12 +130,12 @@ Returns JSON array:
 [
   {
     "id": "156",
-    "system": "github",
+    "system": "forgejo",
     "type": "issue",
     "title": "Fix authentication timeout",
     "status": "open",
     "labels": ["bug", "priority:high"],
-    "url": "https://github.com/owner/repo/issues/156",
+    "url": "https://forgejo.caradoc.com/owner/repo/issues/156",
     "assignees": [],
     "systemData": {
       "repo": "owner/repo",
@@ -156,63 +162,62 @@ Returns JSON array:
 
 Natural language queries the skill should understand:
 
-- "show my tasks" → all items across all systems
-- "show my GitHub issues" → filter by system=github
-- "show my Forgejo issues" → filter by system=forgejo
-- "show my Todoist tasks" → filter by system=todoist
+- "show my tasks" → all items across all projects
+- "list vault issues" → filter by project=vault
+- "show todu tasks" → filter by project=todu
 - "high priority tasks" → filter by labels containing "priority:high"
 - "open tasks" / "active tasks" → filter by status=open
 - "completed tasks" / "done tasks" → filter by status=closed
 - "bugs" → filter by labels=bug
 - "tasks assigned to me" → filter by assignee
 - "urgent tasks due soon" → priority:high + may need to parse due dates
+- "bugs in vault" → filter by project=vault, labels=bug
 
-## System Detection
+## Project Detection
 
-When user doesn't specify a system:
+When user doesn't specify a project:
 
 1. Check if in a git repository
-2. Run `git remote -v` to detect platform
-3. If remote contains "github.com" → suggest filtering to GitHub
-4. If remote contains "forgejo" or "gitea" → suggest filtering to Forgejo
-5. Otherwise → search all systems
+2. Check git remote against registered projects
+3. If remote matches a registered project → suggest filtering to that project
+4. Otherwise → search all projects
 
 ## Cache Management
 
 - Cache location: `~/.local/todu/issues/`
-- All systems write to consolidated issues directory
+- All projects write to consolidated issues directory
 - If cache is empty: Inform user and suggest running sync
 - If cache is stale (>1 hour): Offer to sync before searching
 
 ## Display Format
 
-When showing results from multiple systems, group by system:
+When showing results from multiple projects, group by project:
 
-```
+```text
 Found 15 items:
 
-## GitHub (8 items)
+## todu (8 items)
 #42: Fix auth bug (bug, priority:high)
 #38: Update docs (documentation)
 ...
 
-## Forgejo (5 items)
+## vault (5 items)
 #11: Create daily report skill (priority:high)
 #8: Update README (documentation)
 ...
 
-## Todoist (2 items)
+## daily (2 items)
 Implement dark mode (enhancement, priority:medium)
 Review PR #42 (priority:high, review)
 ...
 ```
 
-When showing results from single system, omit grouping.
+When showing results from single project, omit grouping.
 
 ## Notes
 
 - All searches use local cache (fast, offline-capable)
-- Cross-system search is the default behavior
+- Cross-project search is the default behavior
 - Can combine multiple filters for precise searches
 - Uses consolidated cache at `~/.local/todu/issues/`
 - No API calls = fast and works offline
