@@ -221,7 +221,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
         f"- **In Progress**: {len(in_progress)} tasks",
         f"- **Due**: {len(overdue) + len(due_today)} tasks",
         f"- **Coming Soon**: {len(coming_soon)} tasks",
-        f"- **High Priority**: {len(high_priority)} tasks",
+        f"- **Next**: {len(high_priority)} tasks",
         f"- **Completed Today**: {len(completed_today)} tasks",
         f"- **Canceled Today**: {len(canceled_today)} tasks",
         ""
@@ -347,9 +347,9 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
             lines.append(f"  {url}")
             lines.append("")
 
-    # High Priority section
+    # Next section
     if high_priority:
-        lines.append("## 🔥 High Priority ({})".format(len(high_priority)))
+        lines.append("## 🔥 Next ({})".format(len(high_priority)))
         lines.append("")
         for task in high_priority:
             system = task.get("system", "")
