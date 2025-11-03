@@ -20,7 +20,7 @@ sys.path.insert(0, str(core_scripts_path))
 from id_registry import lookup_filename
 
 # Valid status and priority values
-VALID_STATUSES = ["backlog", "in-progress", "done", "canceled"]
+VALID_STATUSES = ["backlog", "in-progress", "waiting", "done", "canceled"]
 VALID_PRIORITIES = ["low", "medium", "high"]
 
 def update_issue(repo_name, issue_number, status=None, priority=None, close=False, cancel=False, title=None, body=None):

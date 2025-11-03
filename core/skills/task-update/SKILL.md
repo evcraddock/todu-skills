@@ -65,6 +65,9 @@ The skill understands these natural language patterns:
   - "set task 5 to in-progress" → status: inprogress
   - "start working on issue 12" → status: inprogress
   - "mark as todo" → status: todo
+  - "mark as waiting" → status: waiting
+  - "set to blocked" → status: waiting
+  - "waiting on external review" → status: waiting
 
 - **Close/Complete**:
   - "close issue 20" → close with default reason
@@ -88,6 +91,7 @@ The skill understands these natural language patterns:
 **User**: "Mark issue 20 as in-progress"
 
 **Skill**:
+
 1. Parses: ID=20, update=status:inprogress
 2. Resolves ID 20 → github-evcraddock_todu-11
 3. System=github, repo=evcraddock/todu, number=11
@@ -99,6 +103,7 @@ The skill understands these natural language patterns:
 **User**: "Close the auth bug"
 
 **Skill**:
+
 1. Parses: description="auth bug", action=close
 2. Searches for "auth bug" → finds ID 15
 3. Resolves → forgejo-erik_vault-8
@@ -110,6 +115,7 @@ The skill understands these natural language patterns:
 **User**: "Set priority high on issue 5"
 
 **Skill**:
+
 1. Parses: ID=5, update=priority:high
 2. Resolves → system + repo + number
 3. Validates "high" is allowed priority
@@ -121,6 +127,7 @@ The skill understands these natural language patterns:
 **User**: "Mark issue 20 as in-progress with high priority"
 
 **Skill**:
+
 1. Parses: ID=20, updates=[status:inprogress, priority:high]
 2. Resolves task
 3. Calls update script with both flags
@@ -131,8 +138,10 @@ The skill understands these natural language patterns:
 **User**: "Mark sync task as done"
 
 **Skill**:
+
 1. Searches for "sync" → finds 3 matches
 2. Prompts:
+
 ```
 Found 3 tasks matching 'sync':
   [1] ID 15 - Fix sync timing issue
@@ -141,6 +150,7 @@ Found 3 tasks matching 'sync':
 
 Which task? (1-3)
 ```
+
 3. User selects #2
 4. Updates that task
 
@@ -186,6 +196,7 @@ def update_task():
 All update scripts are called via the plugin registry's interface system. The skill uses `registry.build_args(system, 'update', task_data=task, params=updates)` which automatically builds the correct arguments.
 
 **System-agnostic approach:**
+
 ```python
 # Works for ANY system
 registry = get_registry()
@@ -197,6 +208,7 @@ result = subprocess.run([str(script_path)] + args, ...)
 ```
 
 **Output** (JSON to stdout - same format for all systems):
+
 ```json
 {
   "updated": true,
@@ -212,19 +224,24 @@ result = subprocess.run([str(script_path)] + args, ...)
 ## Allowed Values
 
 ### Status
+
 - `todo` - Not started
 - `inprogress` - Currently working on it
+- `waiting` - Blocked/waiting on external factors
 - `done` - Completed
+- `canceled` - Abandoned/cancelled
 
 ### Priority
+
 - `low` - Low priority
 - `medium` - Normal priority
 - `high` - High priority
 - `urgent` - Critical/urgent
 
 ### Common Labels (GitHub/Forgejo)
+
 - `bug`, `enhancement`, `documentation`
-- `status:todo`, `status:inprogress`, `status:done`
+- `status:todo`, `status:inprogress`, `status:waiting`, `status:done`
 - `priority:low`, `priority:medium`, `priority:high`
 
 ## Error Handling

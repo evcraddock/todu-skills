@@ -8,13 +8,14 @@ from pathlib import Path
 import requests
 
 # Valid status and priority values
-VALID_STATUSES = ["backlog", "in-progress", "done", "canceled"]
+VALID_STATUSES = ["backlog", "in-progress", "waiting", "done", "canceled"]
 VALID_PRIORITIES = ["low", "medium", "high"]
 
 # Label color scheme
 LABEL_COLORS = {
     "status:backlog": "#d4c5f9",
     "status:in-progress": "#fbca04",
+    "status:waiting": "#fef2c0",
     "status:done": "#0e8a16",
     "status:canceled": "#d93f0b",
     "priority:low": "#0075ca",

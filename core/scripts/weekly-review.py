@@ -172,8 +172,8 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
         status = task.get("status", "")
         priority = parse_priority(task)
 
-        # Waiting: status:waiting label
-        if has_status_label(task, "waiting") and status not in ["done", "closed", "canceled"]:
+        # Waiting: status=waiting
+        if status == "waiting" and status not in ["done", "closed", "canceled"]:
             waiting.append(task)
 
         # Next: priority:high

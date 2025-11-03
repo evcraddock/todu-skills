@@ -52,7 +52,7 @@ def normalize_task(task):
             due_date = str(task.due)
 
     # Determine normalized status from labels
-    # Priority: status:canceled > status:done > status:in-progress > status:backlog > default
+    # Priority: status:canceled > status:done > status:waiting > status:in-progress > status:backlog > default
     status = "open"
     if task.is_completed:
         # Check for status labels to determine the actual status
@@ -64,8 +64,10 @@ def normalize_task(task):
             # Completed but no status label, default to done
             status = "done"
     else:
-        # Not completed, check for in-progress or backlog
-        if "status:in-progress" in task_labels:
+        # Not completed, check for waiting, in-progress, or backlog
+        if "status:waiting" in task_labels:
+            status = "waiting"
+        elif "status:in-progress" in task_labels:
             status = "in-progress"
         elif "status:backlog" in task_labels:
             status = "backlog"

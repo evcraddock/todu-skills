@@ -106,6 +106,12 @@ def parse_priority(task: Dict[str, Any]) -> str:
     return "none"
 
 
+def has_status_label(task: Dict[str, Any], status: str) -> bool:
+    """Check if task has a specific status label."""
+    labels = task.get("labels", [])
+    return f"status:{status}" in labels
+
+
 def parse_due_date(task: Dict[str, Any]) -> datetime | None:
     """Extract due date from task."""
     # Use standardized dueDate field (set by plugin during sync)
@@ -155,6 +161,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
 
     # Filter tasks by categories
     in_progress = []
+    waiting = []
     due_today = []
     overdue = []
     coming_soon = []
@@ -166,8 +173,11 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
         status = task.get("status", "")
         priority = parse_priority(task)
 
-        # In Progress: only tasks with explicit in-progress status
-        if status == "in-progress":
+        # Waiting: tasks with status=waiting
+        if status == "waiting":
+            waiting.append(task)
+        # In Progress: only tasks with explicit in-progress status (not waiting)
+        elif status == "in-progress":
             in_progress.append(task)
 
         # Due/Overdue/Coming Soon: Any tasks with due dates
@@ -219,6 +229,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
         "",
         "## Summary",
         f"- **In Progress**: {len(in_progress)} tasks",
+        f"- **Waiting**: {len(waiting)} tasks",
         f"- **Due**: {len(overdue) + len(due_today)} tasks",
         f"- **Coming Soon**: {len(coming_soon)} tasks",
         f"- **Next**: {len(high_priority)} tasks",
@@ -232,6 +243,37 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
         lines.append("## 🚧 In Progress ({})".format(len(in_progress)))
         lines.append("")
         for task in in_progress:
+            system = task.get("system", "")
+            todu_id = task.get("id", "")
+            system_id = get_system_identifier(task)
+            title = task.get("title", "")
+            priority = parse_priority(task)
+            assignees = ", ".join(task.get("assignees", []))
+            due = format_date(parse_due_date(task))
+            url = task.get("url", "")
+            project = get_project_name(task, project_map)
+
+            lines.append(f"- [ ] **#{todu_id} - {title}**")
+            meta = [f"System: {system}"]
+            if project:
+                meta.append(f"Project: {project}")
+            if system_id:
+                meta.append(f"System ID: {system_id}")
+            if priority != "none":
+                meta.append(f"Priority: {priority}")
+            if assignees:
+                meta.append(f"Assignee: {assignees}")
+            if due != "-":
+                meta.append(f"Due: {due}")
+            lines.append(f"  {' • '.join(meta)}")
+            lines.append(f"  {url}")
+            lines.append("")
+
+    # Waiting section
+    if waiting:
+        lines.append("## ⏸️  Waiting ({})".format(len(waiting)))
+        lines.append("")
+        for task in waiting:
             system = task.get("system", "")
             todu_id = task.get("id", "")
             system_id = get_system_identifier(task)
