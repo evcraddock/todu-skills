@@ -51,7 +51,9 @@ projects with filtering capabilities.
 
 4. **Display Results**
    - Show items in readable format
-   - Include key details: number, title, status, labels, project
+   - **IMPORTANT**: Display the unified todu ID (from `id` field), NOT system-specific numbers
+   - Format: `#{id}` (e.g., `#66`, `#42`) - use the `id` field, NOT `systemData.number`
+   - Include key details: todu ID, title, status, labels, project
    - Provide URLs for easy access
    - Group by project if showing multiple projects
 
@@ -71,7 +73,7 @@ projects with filtering capabilities.
     Project: todu
   #11: Create skill for downloading daily report (priority:high)
     Project: vault
-  Implement dark mode (enhancement, priority:medium)
+  #58: Implement dark mode (enhancement, priority:medium)
     Project: daily
   ...
   ```
@@ -207,8 +209,8 @@ Found 15 items:
 ...
 
 ## daily (2 items)
-Implement dark mode (enhancement, priority:medium)
-Review PR #42 (priority:high, review)
+#58: Implement dark mode (enhancement, priority:medium)
+#61: Review PR #42 (priority:high, review)
 ...
 ```
 
@@ -221,3 +223,19 @@ When showing results from single project, omit grouping.
 - Can combine multiple filters for precise searches
 - Uses consolidated cache at `~/.local/todu/issues/`
 - No API calls = fast and works offline
+
+## ID Display Format
+
+**CRITICAL**: Always display the unified todu ID in the format `#{id}` when listing tasks.
+
+- The `id` field in the JSON response contains the unified todu ID (numeric)
+- Display format: `#{id}` (e.g., `#66`, `#42`)
+- Do NOT display system-specific IDs from `systemData.number`
+- Always use the `id` field, NOT `systemData.number`
+- Users should reference tasks using the unified todu ID for consistency across systems
+
+Example:
+
+- JSON has: `"id": 66, "systemData": {"number": 4, "repo": "erik/homelab"}`
+- Display as: `#66: Add location detection to umami`
+- NOT as: `#4: Add location detection to umami`
