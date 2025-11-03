@@ -166,10 +166,9 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
         status = task.get("status", "")
         priority = parse_priority(task)
 
-        # In Progress: status in-progress or open with assignees
-        if status in ["in-progress", "open"]:
-            if status == "in-progress" or task.get("assignees"):
-                in_progress.append(task)
+        # In Progress: only tasks with explicit in-progress status
+        if status == "in-progress":
+            in_progress.append(task)
 
         # Due/Overdue/Coming Soon: Any tasks with due dates
         due_date = parse_due_date(task)
