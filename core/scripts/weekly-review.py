@@ -264,6 +264,8 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
     if waiting:
         lines.append("## 🔒 Waiting ({})".format(len(waiting)))
         lines.append("")
+        # Sort by project name
+        waiting.sort(key=lambda t: get_project_name(t, project_map) or "")
         for task in waiting:
             lines.extend(format_task(task, show_priority=True))
 
@@ -271,6 +273,8 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
     if next_tasks:
         lines.append("## 🔥 Next ({})".format(len(next_tasks)))
         lines.append("")
+        # Sort by project name
+        next_tasks.sort(key=lambda t: get_project_name(t, project_map) or "")
         for task in next_tasks:
             lines.extend(format_task(task))
 
@@ -278,6 +282,8 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
     if active:
         lines.append("## 🚧 Active ({})".format(len(active)))
         lines.append("")
+        # Sort by project name
+        active.sort(key=lambda t: get_project_name(t, project_map) or "")
         for task in active:
             lines.extend(format_task(task))
 
@@ -285,6 +291,8 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
     if backlog:
         lines.append("## 📋 Backlog ({})".format(len(backlog)))
         lines.append("")
+        # Sort by project name
+        backlog.sort(key=lambda t: get_project_name(t, project_map) or "")
         for task in backlog:
             lines.extend(format_task(task, show_due=False))
 
@@ -292,8 +300,8 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
     if completed:
         lines.append("## ✅ Completed This Week ({})".format(len(completed)))
         lines.append("")
-        # Sort by completion date
-        completed.sort(key=lambda x: x[1])
+        # Sort by project name, then completion date
+        completed.sort(key=lambda x: (get_project_name(x[0], project_map) or "", x[1]))
         for task, completed_at in completed:
             system = task.get("system", "")
             todu_id = task.get("id", "")
@@ -324,8 +332,8 @@ def generate_weekly_review(tasks: List[Dict[str, Any]], user_tz, project_map: Di
     if canceled:
         lines.append("## ❌ Cancelled This Week ({})".format(len(canceled)))
         lines.append("")
-        # Sort by cancellation date
-        canceled.sort(key=lambda x: x[1])
+        # Sort by project name, then cancellation date
+        canceled.sort(key=lambda x: (get_project_name(x[0], project_map) or "", x[1]))
         for task, canceled_at in canceled:
             system = task.get("system", "")
             todu_id = task.get("id", "")
