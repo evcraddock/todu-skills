@@ -213,7 +213,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
 
     # Generate markdown report
     lines = [
-        f"# Daily Review - {today.strftime('%m-%d-%Y')}",
+        f"# Daily Review: {today.strftime('%m-%d-%Y')}",
         "",
         "*This is a read-only report. Checkboxes are for visual reference only and are not interactive.*",
         "",
