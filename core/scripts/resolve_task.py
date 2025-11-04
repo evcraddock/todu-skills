@@ -117,11 +117,14 @@ def search_tasks_by_description(query: str) -> List[Dict]:
                     matches.append({
                         'id': task.get('id'),
                         'system': parsed['system'],
-                        'repo': parsed['repo'],
-                        'number': parsed['number'],
+                        'systemData': {
+                            'repo': parsed['repo'],
+                            'number': parsed['number']
+                        },
                         'title': task.get('title'),
                         'state': task.get('state'),
-                        'url': task.get('url')
+                        'url': task.get('url'),
+                        'filename': cache_file.name
                     })
         except (json.JSONDecodeError, IOError):
             continue
@@ -140,11 +143,14 @@ def resolve_task(identifier: str) -> Dict:
 
     Returns:
         {
-            "unified_id": 20,
+            "id": 20,
             "system": "github|forgejo|todoist",
-            "repo": "owner/repo",
-            "number": 15,
+            "systemData": {
+                "repo": "owner/repo",
+                "number": 15
+            },
             "title": "...",
+            "state": "open",
             "url": "...",
             "filename": "github-evcraddock_todu-11.json"
         }
@@ -165,10 +171,12 @@ def resolve_task(identifier: str) -> Dict:
                 parsed = parse_filename(filename)
                 if parsed:
                     return {
-                        'unified_id': unified_id,
+                        'id': unified_id,
                         'system': parsed['system'],
-                        'repo': parsed['repo'],
-                        'number': parsed['number'],
+                        'systemData': {
+                            'repo': parsed['repo'],
+                            'number': parsed['number']
+                        },
                         'title': task.get('title'),
                         'state': task.get('state'),
                         'url': task.get('url'),
@@ -192,10 +200,12 @@ def resolve_task(identifier: str) -> Dict:
                         task = load_task_from_cache(cache_file.name)
                         if task:
                             return {
-                                'unified_id': task.get('id'),
+                                'id': task.get('id'),
                                 'system': parsed['system'],
-                                'repo': parsed['repo'],
-                                'number': parsed['number'],
+                                'systemData': {
+                                    'repo': parsed['repo'],
+                                    'number': parsed['number']
+                                },
                                 'title': task.get('title'),
                                 'state': task.get('state'),
                                 'url': task.get('url'),

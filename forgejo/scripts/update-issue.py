@@ -63,6 +63,10 @@ def update_issue(repo_name, issue_number, status=None, priority=None, close=Fals
         if close and not status:
             status = "done"
 
+        # Auto-close when marking as done
+        if status == "done":
+            close = True
+
         # Determine which labels we need to add
         required_label_names = []
 
