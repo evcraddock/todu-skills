@@ -175,8 +175,11 @@ def update_issue(repo_name, issue_number, status=None, priority=None, close=Fals
             plugin_dir = os.environ.get('PLUGIN_DIR', Path(__file__).parent.parent)
             sync_script = Path(plugin_dir) / "scripts" / "sync-issues.py"
 
+            # Get base URL from environment or registry
+            base_url_arg = ["--base-url", base_url] if base_url else []
+
             subprocess.Popen(
-                [str(sync_script), "--repo", repo_name, "--issue", str(issue['number'])],
+                ["python3", str(sync_script), "--repo", repo_name, "--issue", str(issue['number'])] + base_url_arg,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 env=os.environ.copy()

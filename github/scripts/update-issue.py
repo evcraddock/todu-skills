@@ -133,7 +133,7 @@ def update_issue(repo_name, issue_number, status=None, priority=None, close=Fals
             sync_script = Path(plugin_dir) / "scripts" / "sync-issues.py"
 
             subprocess.Popen(
-                [str(sync_script), "--repo", repo_name, "--issue", str(issue.number)],
+                ["python3", str(sync_script), "--repo", repo_name, "--issue", str(issue.number)],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 env=os.environ.copy()
