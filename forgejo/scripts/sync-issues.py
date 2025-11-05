@@ -20,11 +20,18 @@ script_dir = Path(__file__).parent
 sys.path.insert(0, str(script_dir))
 from label_utils import get_forgejo_url as shared_get_forgejo_url, get_base_url_from_registry
 
-# Add path to core scripts for sync_manager and id_registry
+# Add path to core scripts for sync_manager, id_registry, and recurring
 core_scripts_path = Path(__file__).parent.parent.parent / "core" / "scripts"
 sys.path.insert(0, str(core_scripts_path))
 from sync_manager import update_sync_metadata
 from id_registry import assign_id, lookup_id
+from recurring import (
+    is_recurring,
+    create_completion_record,
+    add_completion_to_history,
+    calculate_next_due,
+    update_recurring_task
+)
 
 CACHE_DIR = Path.home() / ".local" / "todu" / "forgejo"
 ITEMS_DIR = Path.home() / ".local" / "todu" / "issues"
@@ -89,6 +96,43 @@ def normalize_issue(issue, repo_name):
     # Only include completedAt if the issue is completed
     if completed_at:
         normalized["completedAt"] = completed_at
+
+    # Check for recurring labels (e.g., "recurring:weekly", "recurring:daily")
+    recurring_pattern = None
+    for label in labels:
+        if label.startswith("recurring:"):
+            recurring_pattern = label.split(":", 1)[1]
+            break
+
+    # Add recurring metadata if labeled as recurring
+    if recurring_pattern:
+        # Parse interval from pattern
+        interval = 1
+        pattern = recurring_pattern
+
+        # Simple pattern normalization
+        if "daily" in pattern or "day" in pattern:
+            pattern = "daily"
+        elif "weekly" in pattern or "week" in pattern:
+            pattern = "weekly"
+        elif "monthly" in pattern or "month" in pattern:
+            pattern = "monthly"
+        elif "yearly" in pattern or "year" in pattern:
+            pattern = "yearly"
+
+        # Calculate next due date based on creation date
+        created_at = datetime.fromisoformat(issue['created_at'].replace('Z', '+00:00'))
+        next_due = calculate_next_due(pattern, interval, created_at)
+
+        normalized["recurring"] = {
+            "pattern": pattern,
+            "interval": interval,
+            "nextDue": next_due,
+            "completions": []
+        }
+
+        # Set dueDate to match nextDue
+        normalized["dueDate"] = next_due
 
     return normalized
 
@@ -173,8 +217,59 @@ def sync_issues(repo_name, since=None, issue_number=None, base_url=None):
             issue_file = ITEMS_DIR / filename
             is_new = not issue_file.exists()
 
+            # Load existing issue if it exists
+            existing_issue = None
+            if not is_new:
+                try:
+                    with open(issue_file, 'r') as f:
+                        existing_issue = json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    pass
+
             # Save normalized issue
             normalized = normalize_issue(issue, repo_name)
+
+            # Check if this is a recurring issue that was just completed
+            if (existing_issue and
+                is_recurring(existing_issue) and
+                not existing_issue.get("completedAt") and
+                normalized.get("completedAt")):
+                # Recurring issue was completed! Create completion record
+                completion = create_completion_record(
+                    existing_issue,
+                    normalized.get("completedAt")
+                )
+
+                # Add completion to history
+                if "recurring" in existing_issue:
+                    normalized["recurring"] = existing_issue["recurring"].copy()
+                    add_completion_to_history(
+                        normalized,
+                        completion["id"],
+                        normalized.get("completedAt")
+                    )
+
+                # Calculate next due date and reopen the task
+                pattern = normalized["recurring"]["pattern"]
+                interval = normalized["recurring"].get("interval", 1)
+                # Use local system time, not UTC
+                from_date = datetime.now()
+                next_due = calculate_next_due(pattern, interval, from_date)
+
+                # Update task for next occurrence
+                normalized = update_recurring_task(normalized, next_due, pattern)
+
+                # Reopen the issue in Forgejo
+                try:
+                    reopen_url = f'{base_url}/api/v1/repos/{repo_name}/issues/{issue["number"]}'
+                    reopen_data = {'state': 'open'}
+                    reopen_response = requests.patch(reopen_url, headers=headers, json=reopen_data)
+                    if reopen_response.status_code == 201:
+                        print(f"Reopened recurring issue #{issue['number']} for next occurrence", file=sys.stderr)
+                    else:
+                        print(f"Warning: Could not reopen issue #{issue['number']}: {reopen_response.status_code}", file=sys.stderr)
+                except Exception as e:
+                    print(f"Warning: Could not reopen issue #{issue['number']}: {e}", file=sys.stderr)
 
             # Assign or reuse todu ID
             if is_new:

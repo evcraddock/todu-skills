@@ -14,11 +14,19 @@ from pathlib import Path
 from datetime import datetime, timezone
 from todoist_api_python.api import TodoistAPI
 
-# Add path to core scripts for sync_manager and id_registry
+# Add path to core scripts for sync_manager, id_registry, and recurring
 core_scripts_path = Path(__file__).parent.parent.parent / "core" / "scripts"
 sys.path.insert(0, str(core_scripts_path))
 from sync_manager import update_sync_metadata
 from id_registry import assign_id, lookup_id
+from recurring import (
+    is_recurring,
+    create_completion_record,
+    update_recurring_task,
+    add_completion_to_history,
+    get_recurring_task,
+    calculate_next_due
+)
 
 CACHE_DIR = Path.home() / ".local" / "todu" / "todoist"
 ITEMS_DIR = Path.home() / ".local" / "todu" / "issues"
@@ -118,6 +126,40 @@ def normalize_task(task):
     if completed_at:
         normalized["completedAt"] = completed_at
 
+    # Add recurring metadata if task is recurring
+    if task.due and hasattr(task.due, 'is_recurring') and task.due.is_recurring:
+        # Parse recurrence pattern
+        pattern = "unknown"
+        interval = 1
+
+        # Extract pattern from due.string (e.g., "every week", "every 2 days")
+        if hasattr(task.due, 'string') and task.due.string:
+            recurrence_str = task.due.string.lower()
+            if "every day" in recurrence_str or "daily" in recurrence_str:
+                pattern = "daily"
+            elif "every week" in recurrence_str or "weekly" in recurrence_str:
+                pattern = "weekly"
+            elif "every month" in recurrence_str or "monthly" in recurrence_str:
+                pattern = "monthly"
+            elif "every year" in recurrence_str or "yearly" in recurrence_str:
+                pattern = "yearly"
+            else:
+                pattern = recurrence_str
+
+        # Calculate next due if not already set or if task was just completed
+        next_due = due_date
+        if not next_due:
+            # No due date from Todoist, calculate based on creation date
+            created_dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            next_due = calculate_next_due(pattern, interval, created_dt)
+
+        normalized["recurring"] = {
+            "pattern": pattern,
+            "interval": interval,
+            "nextDue": next_due,
+            "completions": []
+        }
+
     return normalized
 
 def sync_tasks(project_id=None, task_id=None):
@@ -162,8 +204,49 @@ def sync_tasks(project_id=None, task_id=None):
             task_file = ITEMS_DIR / filename
             is_new = not task_file.exists()
 
+            # Load existing task if it exists
+            existing_task = None
+            if not is_new:
+                try:
+                    with open(task_file, 'r') as f:
+                        existing_task = json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    pass
+
             # Save normalized task
             normalized = normalize_task(task)
+
+            # Check if this is a recurring task that was just completed
+            # For Todoist: detect completion by due date advancement (task stays open)
+            if (existing_task and
+                is_recurring(existing_task) and
+                existing_task.get("dueDate") and
+                normalized.get("dueDate") and
+                existing_task["dueDate"] != normalized["dueDate"]):
+                # Due date advanced! Task was completed
+                # Use the old due date as the completion date
+                completion_date = existing_task["dueDate"]
+
+                completion = create_completion_record(
+                    existing_task,
+                    completion_date + "T23:59:59Z"  # End of the due date
+                )
+
+                # Add completion to history
+                if "recurring" in existing_task:
+                    normalized["recurring"] = existing_task["recurring"].copy()
+                    add_completion_to_history(
+                        normalized,
+                        completion["id"],
+                        completion_date + "T23:59:59Z"
+                    )
+            # Also check for non-recurring tasks that transitioned to completed
+            elif (existing_task and
+                  not is_recurring(existing_task) and
+                  not existing_task.get("completedAt") and
+                  normalized.get("completedAt")):
+                # Non-recurring task was completed (keep existing logic)
+                pass
 
             # Assign or reuse todu ID
             if is_new:

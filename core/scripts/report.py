@@ -121,7 +121,15 @@ def parse_due_date(task: Dict[str, Any]) -> datetime | None:
 
     try:
         # Parse ISO date string
-        return datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
+        dt = datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
+
+        # If it's a date-only string (no time component), treat as local midnight
+        # This prevents timezone conversion from shifting the date
+        if 'T' not in due_date_str and dt.time() == datetime.min.time():
+            # Return as naive datetime - will be interpreted as local time
+            return dt.replace(tzinfo=None)
+
+        return dt
     except:
         return None
 
@@ -129,16 +137,20 @@ def parse_due_date(task: Dict[str, Any]) -> datetime | None:
 def to_local_date(dt: datetime, user_tz) -> datetime:
     """Convert datetime to user's local timezone."""
     if dt.tzinfo is None:
-        # Assume UTC if no timezone info
-        dt = dt.replace(tzinfo=timezone.utc)
+        # Naive datetime - assume it's already in local time
+        # This handles date-only strings that should not be timezone-shifted
+        return dt.replace(tzinfo=user_tz)
     return dt.astimezone(user_tz)
 
 
-def format_date(dt: datetime | None) -> str:
-    """Format date for display."""
+def format_date(dt: datetime | None, user_tz=None) -> str:
+    """Format date for display in user's local timezone."""
     if dt is None:
         return "-"
-    return dt.strftime("%Y-%m-%d")
+    # Convert to local timezone if provided
+    if user_tz is not None:
+        dt = to_local_date(dt, user_tz)
+    return dt.strftime("%m-%d-%Y")
 
 
 def get_week_range(date: datetime) -> tuple[datetime, datetime]:
@@ -249,7 +261,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
             title = task.get("title", "")
             priority = parse_priority(task)
             assignees = ", ".join(task.get("assignees", []))
-            due = format_date(parse_due_date(task))
+            due = format_date(parse_due_date(task), user_tz)
             url = task.get("url", "")
             project = get_project_name(task, project_map)
 
@@ -280,7 +292,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
             title = task.get("title", "")
             priority = parse_priority(task)
             assignees = ", ".join(task.get("assignees", []))
-            due = format_date(parse_due_date(task))
+            due = format_date(parse_due_date(task), user_tz)
             url = task.get("url", "")
             project = get_project_name(task, project_map)
 
@@ -311,6 +323,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
             title = task.get("title", "")
             priority = parse_priority(task)
             assignees = ", ".join(task.get("assignees", []))
+            due = format_date(parse_due_date(task), user_tz)
             url = task.get("url", "")
             project = get_project_name(task, project_map)
 
@@ -324,6 +337,8 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
                 meta.append(f"Priority: {priority}")
             if assignees:
                 meta.append(f"Assignee: {assignees}")
+            if due != "-":
+                meta.append(f"Due: {due}")
             lines.append(f"  {' • '.join(meta)}")
             lines.append(f"  {url}")
             lines.append("")
@@ -339,6 +354,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
             title = task.get("title", "")
             priority = parse_priority(task)
             assignees = ", ".join(task.get("assignees", []))
+            due = format_date(parse_due_date(task), user_tz)
             url = task.get("url", "")
             project = get_project_name(task, project_map)
 
@@ -352,6 +368,8 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
                 meta.append(f"Priority: {priority}")
             if assignees:
                 meta.append(f"Assignee: {assignees}")
+            if due != "-":
+                meta.append(f"Due: {due}")
             lines.append(f"  {' • '.join(meta)}")
             lines.append(f"  {url}")
             lines.append("")
@@ -369,7 +387,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
             title = task.get("title", "")
             priority = parse_priority(task)
             assignees = ", ".join(task.get("assignees", []))
-            due = format_date(parse_due_date(task))
+            due = format_date(parse_due_date(task), user_tz)
             url = task.get("url", "")
             project = get_project_name(task, project_map)
 
@@ -399,7 +417,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
             system_id = get_system_identifier(task)
             title = task.get("title", "")
             assignees = ", ".join(task.get("assignees", []))
-            due = format_date(parse_due_date(task))
+            due = format_date(parse_due_date(task), user_tz)
             url = task.get("url", "")
             project = get_project_name(task, project_map)
 
@@ -428,6 +446,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
             title = task.get("title", "")
             status = task.get("status", "")
             assignees = ", ".join(task.get("assignees", []))
+            due = format_date(parse_due_date(task), user_tz)
             labels = [l for l in task.get("labels", []) if not l.startswith("status:")]
             url = task.get("url", "")
             project = get_project_name(task, project_map)
@@ -441,6 +460,8 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
             meta.append(f"Status: {status}")
             if assignees:
                 meta.append(f"Assignee: {assignees}")
+            if due != "-":
+                meta.append(f"Due: {due}")
             if labels:
                 meta.append(f"Labels: {', '.join(labels)}")
             lines.append(f"  {' • '.join(meta)}")
@@ -457,6 +478,7 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
             system_id = get_system_identifier(task)
             title = task.get("title", "")
             assignees = ", ".join(task.get("assignees", []))
+            due = format_date(parse_due_date(task), user_tz)
             labels = [l for l in task.get("labels", []) if not l.startswith("status:")]
             url = task.get("url", "")
             project = get_project_name(task, project_map)
@@ -469,6 +491,8 @@ def generate_daily_report(tasks: List[Dict[str, Any]], user_tz, project_map: Dic
                 meta.append(f"System ID: {system_id}")
             if assignees:
                 meta.append(f"Assignee: {assignees}")
+            if due != "-":
+                meta.append(f"Due: {due}")
             if labels:
                 meta.append(f"Labels: {', '.join(labels)}")
             lines.append(f"  {' • '.join(meta)}")
