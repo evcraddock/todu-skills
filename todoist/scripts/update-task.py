@@ -179,7 +179,7 @@ def update_task(task_id, status=None, priority=None, complete=False, close=False
             sync_script = Path(plugin_dir) / "scripts" / "sync-tasks.py"
 
             subprocess.Popen(
-                [str(sync_script), "--task-id", task_id],
+                ["python3", str(sync_script), "--task-id", task_id],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 env=os.environ.copy()
