@@ -32,6 +32,16 @@ projects with filtering capabilities.
 - User wants to search a specific project by nickname
 - Fast queries without hitting API (reads from local cache)
 
+## Script Invocation
+
+**CRITICAL: Always run scripts by their full path, never use `python3` or `python3 -m`:**
+
+```bash
+/Users/erik/Private/code/todu/core/scripts/list-items.py [args]
+```
+
+The script has a `#!/usr/bin/env -S uv run` shebang that will automatically handle execution. Just call the path directly.
+
 ## What This Skill Does
 
 1. **Determine Project Context**
