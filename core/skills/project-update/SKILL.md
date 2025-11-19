@@ -8,8 +8,8 @@ description: MANDATORY skill for updating registered projects. NEVER call script
 **⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY update
 project request.**
 
-**NEVER EVER call `update-project.py` directly. This skill provides essential
-logic beyond just running the script:**
+**NEVER EVER call `todu project update` directly. This skill provides essential
+logic beyond just running the CLI:**
 
 - Showing current project details
 - Using AskUserQuestion to let user select which fields to update
@@ -22,128 +22,168 @@ it again for each new update request.
 
 ---
 
-This skill updates fields of a registered project in the project registry at
-`~/.local/todu/projects.json`.
+This skill updates fields of a registered project in the todu database using
+the `todu project update` CLI command.
 
 ## When to Use
 
 - User explicitly mentions updating/modifying/changing a project
-- User says "update project [nickname]"
+- User says "update project [name]"
 - User wants to fix incorrect project information
 - User wants to rename a project
-- User asks to change repo, system, or project-id
+- User wants to change description or status
+- User wants to modify sync strategy
+
+**Note**: System and external_id cannot be changed. If user needs to change
+these, suggest deleting and re-adding the project.
 
 ## What This Skill Does
 
 1. **Identify Project**
-   - Extract the nickname from user's request
-   - If not provided, list available projects and ask which to update
+   - Extract the project name from user's request
+   - If not provided, run `todu project list --format json` and ask which to update
 
 2. **Load Current Project Details**
-   - Call `$PLUGIN_DIR/scripts/list-projects.py --format json` to get project info
-   - Find the project by nickname
+   - Run `todu project list --format json` to get all projects
+   - Find the project by name (case-insensitive search)
+   - Extract the project `id` (needed for update command)
    - Display current project details to user
 
 3. **Select Fields to Update**
    - Use AskUserQuestion to ask which fields to update
-   - Options: "Nickname", "System", "Repository", "Project ID"
+   - Options: "Name", "Description", "Status" (active/done/cancelled),
+    "Sync Strategy" (pull/push/bidirectional)
    - Allow multiSelect: true (user can update multiple fields at once)
+   - **Note**: System and external_id are not updatable
 
 4. **Collect New Values**
    - For each selected field, ask user for the new value
-   - Use AskUserQuestion for system (github/forgejo/todoist)
-   - Ask for text input for nickname, repo, or project-id
+   - **Name**: Ask for new project name (text input)
+   - **Description**: Ask for new description (text input)
+   - **Status**: Use AskUserQuestion with options (active/done/cancelled)
+   - **Sync Strategy**: Use AskUserQuestion with options (pull/push/bidirectional)
 
 5. **Confirm and Apply Update**
    - Show summary of changes (old value -> new value)
    - Confirm with user before applying
-   - Call `$PLUGIN_DIR/scripts/update-project.py` with appropriate flags
+   - Call `todu project update <id>` with appropriate flags
+   - Parse JSON output with `--format json`
    - Display success message with updated details
 
 ## Example Interactions
 
-**User**: "Update the ishould project"
+**User**: "Update the todu-tests project"
 **Skill**:
 
-- Loads projects to find 'ishould'
+- Runs `todu project list --format json` to find 'todu-tests'
+- Finds project with id=1, name="todu-tests"
 - Shows current details:
 
   ```text
   Current project details:
-  - Nickname: ishould
-  - System: forgejo
-  - Repo: some-other/repo
+  - Name: todu-tests
+  - Description: Test project for todu-skills development and testing
+  - Status: active
+  - Sync Strategy: bidirectional
+  - System: forgejo (cannot be changed)
+  - External ID: f7b6d301-a9e5-48ca-b5c2-5c0ac5561765 (cannot be changed)
   ```
 
 - Uses AskUserQuestion:
   - Question: "Which fields would you like to update?"
-  - Options: "Nickname", "System", "Repository", "Project ID"
+  - Options: "Name", "Description", "Status", "Sync Strategy"
   - multiSelect: true
-- User selects: "Repository"
-- Asks: "What is the new repository? (format: owner/repo)"
-- User provides: "erik/ishould"
+- User selects: "Description"
+- Asks: "What is the new description?"
+- User provides: "Updated test project description"
 - Shows confirmation:
 
   ```text
   Changes to apply:
-  - repo: some-other/repo -> erik/ishould
+  - description: Test project for todu-skills development and testing
+                 -> Updated test project description
   ```
 
 - Asks: "Apply these changes?"
-- If confirmed: Calls `update-project.py --nickname ishould --repo erik/ishould`
-- Shows: "Project 'ishould' updated successfully."
+- If confirmed: Calls `todu project update 1 --description
+  "Updated test project description" --format json`
+- Shows: "✅ Project 'todu-tests' updated successfully."
 
-**User**: "Rename ishould to myproject and change the repo"
+**User**: "Rename todu-tests to my-tests and mark it done"
 **Skill**:
 
-- Loads project 'ishould'
-- Infers user wants to update nickname and repo
+- Runs `todu project list --format json` to find 'todu-tests'
+- Finds project with id=1
 - Shows current details
-- Asks for new nickname: "myproject" (or uses extracted value)
-- Asks for new repo: "owner/repo"
-- Confirms changes
-- Calls: `update-project.py --nickname ishould --new-nickname myproject --repo owner/repo`
+- Infers user wants to update name and status
+- Asks for confirmation or uses AskUserQuestion if ambiguous
+- Shows confirmation:
 
-## Script Interface
+  ```text
+  Changes to apply:
+  - name: todu-tests -> my-tests
+  - status: active -> done
+  ```
+
+- If confirmed: Calls `todu project update 1 --name my-tests
+  --status done --format json`
+- Shows: "✅ Project 'my-tests' updated successfully."
+
+## CLI Interface
+
+**List all projects** (to find project ID and current values):
 
 ```bash
-# Update project fields
-$PLUGIN_DIR/scripts/update-project.py \
-  --nickname <current-nickname> \
-  [--new-nickname <new-nickname>] \
-  [--system <system>] \
-  [--repo <repo>] \
-  [--project-id <project-id>] \
-  [--remove-repo] \
-  [--remove-project-id]
+todu project list --format json
 ```
 
-Returns JSON on success:
+Returns array of projects:
 
 ```json
-{
-  "success": true,
-  "action": "updated",
-  "nickname": "ishould",
-  "changes": [
-    "repo: some-other/repo -> erik/ishould"
-  ],
-  "project": {
-    "system": "forgejo",
-    "repo": "erik/ishould",
-    "addedAt": "2025-10-31T18:30:29.101649+00:00"
+[
+  {
+    "id": 1,
+    "name": "todu-tests",
+    "description": "Test project for todu-skills development and testing",
+    "system_id": 1,
+    "external_id": "f7b6d301-a9e5-48ca-b5c2-5c0ac5561765",
+    "status": "active",
+    "sync_strategy": "bidirectional",
+    "created_at": "2025-11-19T19:53:12.72737Z",
+    "updated_at": "2025-11-19T19:53:12.72737Z"
   }
-}
+]
 ```
 
-Returns error if not found or no changes:
+**Update project** (requires project ID from list command):
 
-```json
-{
-  "error": "Project 'nickname' not found",
-  "success": false
-}
+```bash
+todu project update <id> \
+  [--name <new-name>] \
+  [--description <description>] \
+  [--status <active|done|cancelled>] \
+  [--sync-strategy <pull|push|bidirectional>] \
+  --format json
 ```
+
+Example:
+
+```bash
+# Update description
+todu project update 1 --description "New description" --format json
+
+# Update multiple fields
+todu project update 1 --name new-name --status done --format json
+```
+
+**Output format**: The CLI outputs JSON when `--format json` is used. Parse
+the output to confirm success and extract updated values.
+
+**Limitations**:
+
+- Cannot update `system_id` (the system type like github/forgejo)
+- Cannot update `external_id` (the repo or external identifier)
+- To change system or external_id, user must delete and re-add the project
 
 ## Field Selection Flow
 
@@ -157,40 +197,50 @@ AskUserQuestion(
         "multiSelect": true,
         "options": [
             {
-                "label": "Nickname",
-                "description": f"Current: {current_nickname}"
+                "label": "Name",
+                "description": f"Current: {current_name}"
             },
             {
-                "label": "System",
-                "description": f"Current: {current_system}"
+                "label": "Description",
+                "description": f"Current: {current_description or '(empty)'}"
             },
             {
-                "label": "Repository",
-                "description": f"Current: {current_repo or 'none'} (owner/repo format)"
+                "label": "Status",
+                "description": f"Current: {current_status} (active/done/cancelled)"
             },
             {
-                "label": "Project ID",
-                "description": f"Current: {current_project_id or 'none'}"
+                "label": "Sync Strategy",
+                "description": f"Current: {current_sync_strategy} (pull/push/bidirectional)"
             }
         ]
     }]
 )
 ```
 
+**Note**: System and external_id are not shown as options because they cannot
+be updated.
+
 ## Value Collection
 
 For each selected field:
 
-**Nickname**: Ask user for new nickname (text input)
+**Name**: Ask user for new project name (text input via AskUserQuestion
+"Other" option)
 
-**System**: Ask user for system type. Available systems are discovered dynamically
-from registered plugins. Each plugin defines its system type in its `todu.json`
-configuration.
+**Description**: Ask user for new description (text input via AskUserQuestion
+"Other" option)
 
-**Repository**: Ask user for new repo in owner/repo format
+**Status**: Use AskUserQuestion with predefined options:
 
-**Project ID**: Ask user for new project ID (for task management systems that
-use numeric project IDs)
+- active
+- done
+- cancelled
+
+**Sync Strategy**: Use AskUserQuestion with predefined options:
+
+- pull (only sync from external system to todu)
+- push (only sync from todu to external system)
+- bidirectional (sync both ways)
 
 ## Confirmation Flow
 
@@ -198,8 +248,8 @@ Before applying updates, show summary and confirm:
 
 ```text
 Changes to apply:
-- nickname: ishould -> myproject
-- repo: some-other/repo -> erik/ishould
+- name: todu-tests -> my-tests
+- status: active -> archived
 
 Apply these changes? (yes/no)
 ```
@@ -210,25 +260,34 @@ Only proceed if user confirms.
 
 Natural language queries the skill should understand:
 
-- "update project [nickname]" → update specific project
-- "modify [nickname]" → update specific project
-- "change [nickname] repo" → update repo field
-- "rename [nickname] to [new-name]" → update nickname
-- "fix the [nickname] project" → update any fields
+- "update project [name]" → update specific project
+- "modify [name]" → update specific project
+- "change [name] description" → update description field
+- "rename [name] to [new-name]" → update name field
+- "fix the [name] project" → update any fields
+- "mark [name] as done" → update status to done
+- "cancel [name]" → update status to cancelled
+- "change [name] sync strategy" → update sync_strategy field
 
 ## Error Handling
 
-- **Project not found**: List available projects and suggest correct nickname
+- **Project not found**: List available projects and suggest correct name
 - **No changes specified**: Inform user no updates were selected
 - **Invalid values**: Show validation error and ask again
-- **Duplicate nickname**: If renaming, check new nickname doesn't exist
-- **Update failed**: Show error message from script
+- **Duplicate name**: If renaming, check new name doesn't already exist
+- **Update failed**: Parse CLI error output and show message
+- **CLI errors**: Check exit code and parse error output
+- **Cannot update system/external_id**: Inform user these fields cannot be
+  changed and suggest delete + re-add workflow
 
 ## Notes
 
-- Updates preserve the original `addedAt` timestamp
+- Updates preserve the original `created_at` timestamp
+- The `updated_at` timestamp is automatically updated
 - User can update multiple fields in one operation (multiSelect)
 - Confirmation is required before applying changes
 - User can always cancel during field selection or confirmation
-- System validation ensures only valid systems are accepted
-- Repo format should be owner/repo for repository-based systems
+- Must use project ID (not name) for the update command
+- Status values: active, done, cancelled
+- Sync strategy values: pull, push, bidirectional
+- System and external_id cannot be updated via this skill
