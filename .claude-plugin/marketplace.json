@@ -5,21 +5,6 @@
   },
   "plugins": [
     {
-      "name": "github",
-      "source": "./github",
-      "description": "GitHub task management - create issues, sync, and search with rich git context"
-    },
-    {
-      "name": "forgejo",
-      "source": "./forgejo",
-      "description": "Forgejo task management - create issues, sync, and search with rich git context"
-    },
-    {
-      "name": "todoist",
-      "source": "./todoist",
-      "description": "Todoist task management - create personal tasks, sync, and search with git context"
-    },
-    {
       "name": "core",
       "source": "./core",
       "description": "Core todu functionality - generate daily and weekly reports across all task systems"
