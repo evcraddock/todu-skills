@@ -22,18 +22,49 @@ if ! curl -s -f "$API_URL/health" > /dev/null 2>&1; then
     echo "Continuing anyway..."
 fi
 
+# Setup test systems (github and forgejo)
+echo "Setting up test systems..."
+if ! todu system list --format json | grep -q '"identifier": "github"'; then
+    echo "Creating GitHub test system..."
+    todu system add --identifier github --name github --url https://githubtest.local
+fi
+
+if ! todu system list --format json | grep -q '"identifier": "forgejo"'; then
+    echo "Creating Forgejo test system..."
+    todu system add --identifier forgejo --name forgejo --url https://forgejotest.local
+fi
+
 # Check if todu-tests project already exists
 if todu project list --format json | grep -q '"name": "todu-tests"'; then
     echo "Test project 'todu-tests' already exists. Skipping creation."
     exit 0
 fi
 
-# Create local test project
-echo "Creating test project 'todu-tests'..."
+# Create test projects for each system
+echo "Creating test projects..."
+
+# Local test project
+echo "Creating local test project 'todu-tests'..."
 todu project add \
     --name todu-tests \
     --system local \
     --description "Test project for todu-skills development and testing"
+
+# GitHub test project
+echo "Creating GitHub test project 'test-github-repo'..."
+todu project add \
+    --name test-github-repo \
+    --system github \
+    --external-id "testuser/test-repo" \
+    --description "Test GitHub repository"
+
+# Forgejo test project
+echo "Creating Forgejo test project 'test-forgejo-repo'..."
+todu project add \
+    --name test-forgejo-repo \
+    --system forgejo \
+    --external-id "testuser/forgejo-repo" \
+    --description "Test Forgejo repository"
 
 # Get the project ID
 PROJECT_ID=$(todu project list --format json | grep -A 5 '"name": "todu-tests"' | grep '"id"' | head -1 | awk '{print $2}' | tr -d ',')

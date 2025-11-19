@@ -1,15 +1,16 @@
 ---
 name: project-list
-description: MANDATORY skill for listing registered projects. NEVER call scripts/list-projects.py directly - ALWAYS use this skill via the Skill tool. Use when user wants to list, show, or view registered projects. (plugin:core@todu)
+description: MANDATORY skill for listing registered projects. Use when user wants to list, show, or view registered projects. (plugin:core@todu)
 ---
 
 # List Registered Projects
 
 **⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY list projects request.**
 
-**NEVER EVER call `list-projects.py` directly. This skill provides essential logic beyond just running the script:**
+**NEVER EVER call `todu project list` directly. This skill provides essential logic beyond just running the CLI:**
 
 - Parsing user intent to determine if they want all projects or filtered by system
+- Fetching system information to map system IDs to names
 - Formatting results in user-friendly display
 - Handling empty project registry gracefully
 - Providing guidance on how to register projects
@@ -18,13 +19,13 @@ Even if you've invoked this skill before in the conversation, you MUST invoke it
 
 ---
 
-This skill lists all registered projects from the project registry at `~/.local/todu/projects.json`.
+This skill lists all registered projects using the `todu` CLI.
 
 ## When to Use
 
 - User explicitly mentions listing/showing/viewing projects
 - User wants to see what projects are registered
-- User wants to see projects for a specific system (GitHub, Forgejo, Todoist)
+- User wants to see projects for a specific system (GitHub, Forgejo, local)
 - User asks "what projects do I have?"
 
 ## What This Skill Does
@@ -32,18 +33,23 @@ This skill lists all registered projects from the project registry at `~/.local/
 1. **Determine Filter Context**
    - If user mentions "GitHub projects" - filter to system=github
    - If user mentions "Forgejo projects" - filter to system=forgejo
-   - If user mentions "Todoist projects" - filter to system=todoist
+   - If user mentions "Local projects" - filter to system=local
    - Otherwise - show ALL registered projects
 
-2. **Load Projects**
-   - Call `$PLUGIN_DIR/scripts/list-projects.py` with optional filters
-   - Script reads from `~/.local/todu/projects.json`
-   - Returns projects in requested format
+2. **Fetch System Information**
+   - Call `todu system list --format json` to get system ID to name mapping
+   - Build lookup table: system_id → identifier (e.g., 1 → "github")
 
-3. **Display Results**
-   - Show projects grouped by system
-   - Include nickname, repo/project-id, and registration date
-   - Provide clear formatting for easy reading
+3. **Load Projects**
+   - Call `todu project list --format json` with optional `--system <name>` filter
+   - Parse JSON response containing project details
+
+4. **Display Results**
+   - Group projects by system identifier (github, forgejo, local)
+   - For each project show:
+     - Name (bold)
+     - External ID (repo path or project ID)
+     - Created date
    - Show count of total registered projects
 
 ## Example Interactions
@@ -51,7 +57,8 @@ This skill lists all registered projects from the project registry at `~/.local/
 **User**: "Show me my registered projects"
 **Skill**:
 
-- Calls: `list-projects.py --format markdown`
+- Calls: `todu system list --format json` (to get system mapping)
+- Calls: `todu project list --format json`
 - Displays:
 
   ```
@@ -59,77 +66,84 @@ This skill lists all registered projects from the project registry at `~/.local/
 
   ## GITHUB
 
-  **todu**
-  - Repo: `evcraddock/todu`
-  - Added: 2025-10-31T18:30:38.876581+00:00
+  **todu-api**
+  - Repo: `evcraddock/todu-api`
+  - Added: 2025-11-17T15:40:09Z
 
   ## FORGEJO
 
   **ishould**
   - Repo: `erik/ishould`
-  - Added: 2025-10-31T18:30:29.101649+00:00
+  - Added: 2025-11-17T15:45:41Z
 
-  ## TODOIST
+  ## LOCAL
 
-  **personal**
-  - Project ID: `2203306141`
-  - Added: 2025-10-15T10:00:00Z
+  **ntrs-mdu**
+  - Project ID: `34f70dd7-ec1c-446a-a9ea-549fe79cf82b`
+  - Added: 2025-11-17T15:47:13Z
   ```
 
 **User**: "List my GitHub projects"
 **Skill**:
 
 - Extracts: system=github
-- Calls: `list-projects.py --format markdown --system github`
+- Calls: `todu system list --format json`
+- Calls: `todu project list --format json --system github`
 - Shows filtered results for GitHub only
 
 **User**: "What projects do I have?"
 **Skill**:
 
-- Calls: `list-projects.py --format markdown`
+- Calls: `todu system list --format json`
+- Calls: `todu project list --format json`
 - Shows all registered projects grouped by system
 
-## Script Interface
+## CLI Interface
 
 ```bash
+# Get system information (for mapping system_id to identifier)
+todu system list --format json
+
 # List all projects
-$PLUGIN_DIR/scripts/list-projects.py --format markdown
+todu project list --format json
 
 # Filter by specific system
-$PLUGIN_DIR/scripts/list-projects.py --system github --format markdown
-$PLUGIN_DIR/scripts/list-projects.py --system forgejo --format markdown
-$PLUGIN_DIR/scripts/list-projects.py --system todoist --format markdown
-
-# Get JSON output
-$PLUGIN_DIR/scripts/list-projects.py --format json
+todu project list --format json --system github
+todu project list --format json --system forgejo
+todu project list --format json --system local
 ```
 
-Returns JSON:
+System list returns:
 
 ```json
-{
-  "projects": [
-    {
-      "nickname": "todu",
-      "system": "github",
-      "repo": "evcraddock/todu",
-      "addedAt": "2025-10-31T18:30:38.876581+00:00"
-    },
-    {
-      "nickname": "ishould",
-      "system": "forgejo",
-      "repo": "erik/ishould",
-      "addedAt": "2025-10-31T18:30:29.101649+00:00"
-    },
-    {
-      "nickname": "personal",
-      "system": "todoist",
-      "projectId": "2203306141",
-      "addedAt": "2025-10-15T10:00:00Z"
-    }
-  ],
-  "count": 3
-}
+[
+  {
+    "id": 1,
+    "identifier": "github",
+    "name": "github.com",
+    "url": "https://api.github.com",
+    "created_at": "2025-11-17T15:38:31.934508Z",
+    "updated_at": "2025-11-17T15:38:31.934508Z"
+  }
+]
+```
+
+Project list returns:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "todu-api",
+    "system_id": 1,
+    "external_id": "evcraddock/todu-api",
+    "status": "active",
+    "sync_strategy": "bidirectional",
+    "last_synced_at": "2025-11-19T20:39:25.146981Z",
+    "created_at": "2025-11-17T15:40:09.070442Z",
+    "updated_at": "2025-11-19T20:39:25.22584Z"
+  }
+]
 ```
 
 ## Search Patterns
@@ -141,20 +155,15 @@ Natural language queries the skill should understand:
 - "what projects are registered?" → all projects
 - "show my GitHub projects" → filter by system=github
 - "show my Forgejo projects" → filter by system=forgejo
-- "show my Todoist projects" → filter by system=todoist
+- "show my Local projects" → filter by system=local
 - "list all registered projects" → all projects
 
 ## Empty Registry Handling
 
-If no projects are registered:
+If no projects are registered (empty JSON array):
 
 - Inform user that no projects are registered
-- Provide guidance on how to register a project:
-
-  ```
-  Register a project with:
-    register-project.py --nickname <name> --system <system> --repo <owner/repo>
-  ```
+- Provide guidance on how to register a project using the `project-register` skill
 
 ## Display Format
 
@@ -164,33 +173,42 @@ Projects are grouped by system for clarity:
 # Registered Projects (5)
 
 ## GITHUB (2 projects)
-**todu**
-- Repo: `evcraddock/todu`
-- Added: 2025-10-31T18:30:38Z
+**todu-api**
+- Repo: `evcraddock/todu-api`
+- Added: 2025-11-17T15:40:09Z
 
-**example-repo**
-- Repo: `user/example-repo`
-- Added: 2025-10-30T14:22:10Z
+**todu.sh**
+- Repo: `evcraddock/todu.sh`
+- Added: 2025-11-17T15:41:13Z
 
 ## FORGEJO (2 projects)
 **ishould**
 - Repo: `erik/ishould`
-- Added: 2025-10-31T18:30:29Z
+- Added: 2025-11-17T15:45:41Z
 
-**common-commands**
-- Repo: `erik/common-commands`
-- Added: 2025-10-29T09:15:00Z
+**Vault**
+- Repo: `erik/Vault`
+- Added: 2025-11-17T15:45:41Z
 
-## TODOIST (1 project)
-**personal**
-- Project ID: `2203306141`
-- Added: 2025-10-15T10:00:00Z
+## LOCAL (1 project)
+**ntrs-mdu**
+- Project ID: `34f70dd7-ec1c-446a-a9ea-549fe79cf82b`
+- Added: 2025-11-17T15:47:13Z
 ```
+
+## Implementation Details
+
+1. **Fetch systems**: Call `todu system list --format json` to build system_id → identifier map
+2. **Fetch projects**: Call `todu project list --format json` (optionally with `--system <name>`)
+3. **Group by system**: Use `system_id` to look up system `identifier`, group projects
+4. **Format output**: Display grouped projects in markdown with counts
+5. **Handle empty**: If projects array is empty, show helpful message
 
 ## Notes
 
-- Projects are stored in `~/.local/todu/projects.json`
-- Nicknames are used for quick reference in natural language workflows
-- Each project is associated with exactly one system
-- Registration dates help track when projects were added
-- Use this to see what projects can be used with sync-all or task creation
+- Projects are managed by the todu API backend
+- Each project has a name (not nickname) used for display
+- Each project is associated with exactly one system via `system_id`
+- The `external_id` contains the repo path or project identifier
+- Registration dates are in `created_at` field (ISO 8601 format)
+- Use this to see what projects can be used with sync or task creation
