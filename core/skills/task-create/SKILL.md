@@ -7,294 +7,200 @@ description: MANDATORY skill for creating tasks/issues in any system. NEVER call
 
 **⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY create request.**
 
-**NEVER EVER call create scripts directly. This skill provides essential unified logic:**
+**NEVER EVER call `todu task create` directly. This skill provides essential
+logic beyond just running the CLI:**
 
-- Automatic system detection from git remote
-- Project resolution and registration
-- Git context extraction for rich issue details
-- Plugin-based routing to correct create script
-- Interactive prompts for title, description, labels
+- Project selection and validation
+- Interactive prompts for required and optional fields
 - Handling project selection when ambiguous
+- Providing clear feedback about created tasks
 
 ---
 
-This skill creates new tasks/issues in any registered system with rich context from git.
+This skill creates new tasks in the todu database using the `todu task create`
+CLI command.
 
 ## When to Use
 
-- User wants to create an issue or task
-- User says "create issue" or "new task"
-- User provides explicit system ("create github issue")
-- User provides project context ("create issue in vault")
+- User wants to create a task
+- User says "create task" or "new task"
+- User provides project context ("create task in todu-skills")
+- User wants to add a task to a specific project
 
 ## What This Skill Does
 
-1. **Determine Target System and Project**
-   - If explicit: "create github issue in evcraddock/todu"
-   - If in git repo: detect from remote URL
-   - If todoist: require project name/nickname
-   - If ambiguous: prompt user
+1. **Identify Project**
+   - Extract project name from user's request
+   - If not provided, run `todu project list --format json` and ask which
+     project to use
 
-2. **Ensure Project is Registered**
-   - Call `core:project-register` skill
-   - Handle nickname conflicts
-   - Auto-register if not exists
+2. **Gather Required Fields**
+   - **Title** (required): Use AskUserQuestion with "Other" option for text
+     input
 
-3. **Extract Git Context** (if available)
-   - Current branch
-   - Recent commits
-   - Modified files
-   - Include in issue description
+3. **Ask About Optional Fields**
+   - Use AskUserQuestion: "Would you like to add optional details?"
+   - Options: "Yes, add details" or "No, create with just title"
 
-4. **Gather Issue Details**
-   - Prompt for title (required)
-   - Prompt for description (optional, but include git context)
-   - Prompt for labels (optional)
-   - Prompt for priority (optional)
-   - Prompt for assignees (optional, GitHub/Forgejo only)
+4. **Gather Optional Fields** (if user selected yes)
+   - **Description**: Ask for task description
+   - **Priority**: Use AskUserQuestion (low/medium/high)
+   - **Labels**: Ask for comma-separated labels
+   - **Due Date**: Ask for date in YYYY-MM-DD format
+   - **Assignees**: Ask for comma-separated usernames
 
-5. **Route to Create Script**
-   - Use plugin registry to get script path
-   - Use plugin registry to build arguments from interface spec
-   - Call create script (system-agnostic)
+5. **Create Task**
+   - Build CLI command: `todu task create --project <name> --title <title>`
+   - Add optional flags if provided
+   - Use `--format json` for parsing output
+   - Execute command
 
 6. **Display Confirmation**
-   - Show created issue/task details
-   - Display URL
-   - Show todu unified ID (after sync)
+   - Show created task details (ID, title, project)
+   - Display external URL if available
+   - Show success message
 
 ## Example Interactions
 
-### Example 1: Create from Git Repo
+### Example 1: Create task with just title
 
-**User**: "Create an issue" (while in evcraddock/todu repo)
+**User**: "Create a task in todu-skills"
 
 **Skill**:
-1. Detects git remote → github.com:evcraddock/todu
-2. Determines: system=github, repo=evcraddock/todu
-3. Ensures project registered as "todu"
-4. Extracts git context:
-   - Branch: feature/auth-fix
-   - Commits: "Add login validation", "Fix cookie expiry"
-   - Modified: src/auth.py, tests/test_auth.py
-5. Prompts:
-   - Title: "Fix authentication timeout bug"
-   - Description: (pre-fills with git context)
-   ```
-   ## Context
-   Branch: feature/auth-fix
 
-   Recent commits:
-   - Add login validation
-   - Fix cookie expiry
+1. Identifies project: "todu-skills"
+2. Asks for title: "Fix authentication bug"
+3. Asks: "Would you like to add optional details?"
+   - User selects: "No, create with just title"
+4. Executes: `todu task create --project todu-skills --title "Fix
+   authentication bug" --format json`
+5. Shows: "✅ Created task #42: Fix authentication bug (todu-skills)"
 
-   Modified files:
-   - src/auth.py
-   - tests/test_auth.py
+### Example 2: Create task with all details
 
-   ## Description
-   [User fills in details here]
-   ```
-   - Labels: "bug, auth"
+**User**: "Create a new task"
+
+**Skill**:
+
+1. Runs `todu project list --format json`
+2. Asks which project:
+   - todu-skills
+   - todu-tests
+   - my-project
+3. User selects: "todu-skills"
+4. Asks for title: "Implement user authentication"
+5. Asks: "Would you like to add optional details?"
+   - User selects: "Yes, add details"
+6. Gathers optional fields:
+   - Description: "Add JWT-based authentication with refresh tokens"
    - Priority: "high"
-6. Calls create script via registry.build_args()
-7. Shows: "✅ Created issue #42: Fix authentication timeout bug"
-   URL: https://github.com/evcraddock/todu/issues/42
+   - Labels: "feature, auth, security"
+   - Due date: "2025-12-31"
+   - Assignees: "alice, bob"
+7. Executes: `todu task create --project todu-skills --title "Implement user
+   authentication" --description "Add JWT-based authentication with refresh
+   tokens" --priority high --label feature --label auth --label security --due
+   2025-12-31 --assignee alice --assignee bob --format json`
+8. Shows: "✅ Created task #43: Implement user authentication (todu-skills)"
 
-### Example 2: Create Explicit System + Repo
+### Example 3: Project not specified
 
-**User**: "Create a github issue in evcraddock/rott"
-
-**Skill**:
-1. Parses: system=github, repo=evcraddock/rott
-2. Ensures project registered
-3. No git context (not in that repo)
-4. Prompts for title, description, labels
-5. Creates issue
-6. Shows confirmation
-
-### Example 3: Create Todoist Task
-
-**User**: "Create a task in my daily project"
+**User**: "Create a task"
 
 **Skill**:
-1. Identifies: system=todoist
-2. Resolves "daily" → todoist project 6f9j9mGWwQrvvRHF
-3. Prompts for:
-   - Title: "Review pull requests"
-   - Description: "Check pending PRs in todu and vault repos"
-   - Priority: "medium"
-   - Due date: "today"
-4. Calls create script via registry
-5. Shows: "✅ Created task: Review pull requests (todoist-home)"
 
-### Example 4: Ambiguous System
+1. Runs `todu project list --format json`
+2. Asks: "Which project should this task belong to?"
+   - todu-skills
+   - todu-tests
+   - my-project
+3. User selects: "todu-tests"
+4. Continues with title and optional fields prompts
 
-**User**: "Create an issue"
+## CLI Interface
 
-**Skill**:
-1. Not in git repo, no context
-2. Prompts: "Which system would you like to use?"
-   - GitHub (2 projects)
-   - Forgejo (2 projects)
-   - Todoist (2 projects)
-3. User selects: "GitHub"
-4. Prompts: "Which project?"
-   - evcraddock/todu
-   - evcraddock/rott
-5. User selects: "evcraddock/todu"
-6. Proceeds with creation
+**List all projects** (to select which project to create task in):
 
-## Git Context Extraction
-
-When creating from a git repository, automatically include:
-
-```markdown
-## Git Context
-
-**Branch**: feature/auth-fix
-
-**Recent Commits**:
-- abc1234 Add login validation
-- def5678 Fix cookie expiry
-- ghi9012 Update auth tests
-
-**Modified Files**:
-- M src/auth.py
-- M tests/test_auth.py
-- A src/utils/session.py
-
----
-
-## Description
-[User's description here]
+```bash
+todu project list --format json
 ```
 
-## Implementation Pseudocode
+Returns array of projects with id, name, description, etc.
 
-```python
-import sys
-from pathlib import Path
+**Create task** (requires project name and title):
 
-sys.path.append(str(Path(__file__).parent.parent.parent / 'scripts'))
-from plugin_registry import get_registry
-from git_context import get_git_context
+```bash
+# Minimal - just project and title
+todu task create --project <name> --title <title> --format json
 
-def create_task():
-    # 1. Determine target
-    system, repo = determine_target(user_message)
-
-    if not system:
-        # Try git context
-        context = get_git_context()
-        if context and context['system']:
-            system = context['system']
-            repo = context['repo']
-
-    # 2. Ensure registered
-    # Call core:project-register
-
-    # 3. Extract git context
-    git_info = get_git_context() if system in ['github', 'forgejo'] else None
-
-    # 4. Prompt for details
-    title = prompt("Title: ")
-    description = prompt_with_git_context("Description: ", git_info)
-    labels = prompt("Labels (comma-separated): ")
-    priority = prompt("Priority (low/medium/high): ")
-
-    # 5. Get script path and build args from interface
-    registry = get_registry()
-    script_path = registry.get_script_path(system, 'create')
-    args = registry.build_args(system, 'create', params={
-        'repo': repo,  # or 'project_id' for todoist
-        'title': title,
-        'body': description,
-        'labels': labels,
-        'priority': priority
-    })
-
-    # 6. Call script (system-agnostic)
-    result = subprocess.run([str(script_path)] + args, ...)
-
-    # 7. Display confirmation
-    output = json.loads(result.stdout)
-    print(f"✅ Created {system} issue #{output['number']}: {title}")
-    print(f"URL: {output['url']}")
+# With all optional fields
+todu task create \
+  --project <name> \
+  --title <title> \
+  --description <text> \
+  --priority <low|medium|high> \
+  --label <label1> --label <label2> \
+  --assignee <user1> --assignee <user2> \
+  --due <YYYY-MM-DD> \
+  --format json
 ```
 
-## Script Interface
+**Example:**
 
-All create scripts are called via the plugin registry's interface system. The skill uses `registry.build_args(system, 'create', params={...})` which automatically builds the correct arguments based on each system's interface specification in `todu.json`.
+```bash
+# Create task with just title
+todu task create --project todu-skills --title "Fix bug" --format json
 
-**System-agnostic approach:**
-```python
-# Works for ANY system (github, forgejo, todoist, future systems)
-registry = get_registry()
-script_path = registry.get_script_path(system, 'create')
-args = registry.build_args(system, 'create', params={
-    'repo': 'owner/repo',  # or 'project_id' for todoist
-    'title': 'Fix bug',
-    'body': 'Description',
-    'labels': 'bug',
-    'priority': 'high'
-})
-result = subprocess.run([str(script_path)] + args, ...)
+# Create task with all fields
+todu task create \
+  --project todu-skills \
+  --title "Implement feature" \
+  --description "Add user authentication" \
+  --priority high \
+  --label feature --label auth \
+  --assignee alice \
+  --due 2025-12-31 \
+  --format json
 ```
 
-**Output** (JSON to stdout - same format for all systems):
-```json
-{
-  "created": true,
-  "number": 42,
-  "title": "Fix auth bug",
-  "url": "https://github.com/owner/repo/issues/42",
-  "system": "github",
-  "repo": "owner/repo"
-}
-```
-
-**Capability Differences** (queried from plugin capabilities, not hardcoded):
-- Check `plugin.capabilities` for what each system supports
-- Labels, assignees, milestones support varies by system
-- Use interface spec to know what arguments are available
+**Output format**: The CLI outputs JSON when `--format json` is used. Parse
+the output to extract task ID, title, and other details.
 
 ## Prompting Strategy
 
-1. **Title** (always required):
-   - Clear, concise summary
-   - Examples shown to user
+1. **Project Selection**:
+   - If mentioned in request: extract and use
+   - If not mentioned: list all projects and ask user to select
 
-2. **Description** (optional but recommended):
-   - Pre-populated with git context if available
-   - User can add details below context
+2. **Title** (required):
+   - Use AskUserQuestion with "Other" option for text input
+   - Clear, concise summary of the task
 
-3. **Labels** (optional):
-   - Suggest common labels based on title
-   - E.g., "bug" if title contains "fix" or "error"
+3. **Optional Fields Gate**:
+   - Ask: "Would you like to add optional details?"
+   - Options: "Yes, add details" / "No, create with just title"
+   - Only gather optional fields if user selects "Yes"
 
-4. **Priority** (optional):
-   - Default: medium
-   - Accept: low, medium, high, urgent
-
-5. **Assignees** (optional, check plugin.capabilities):
-   - Accept @username format
-   - Validate against repo collaborators
-   - Only prompt if system supports assignees
+4. **Optional Fields** (if requested):
+   - **Description**: Ask for task description (text input)
+   - **Priority**: Use AskUserQuestion with options (low/medium/high)
+   - **Labels**: Ask for comma-separated labels
+   - **Due Date**: Ask for date in YYYY-MM-DD format
+   - **Assignees**: Ask for comma-separated usernames
 
 ## Error Handling
 
-- **No system context**: Prompt user to select
-- **Project not found**: Offer to register
-- **Authentication errors**: Show token setup
-- **Validation errors**: Explain format and retry
-- **Network errors**: Suggest retry
+- **No projects exist**: Inform user they need to register a project first
+- **Project not found**: List available projects and suggest correct name
+- **Invalid date format**: Explain YYYY-MM-DD format and ask again
+- **CLI errors**: Parse error output and show message
+- **Missing title**: Prompt user for title (required field)
 
-## Success Criteria
+## Notes
 
-- ✅ "create issue" in git repo detects system
-- ✅ "create github issue" explicit works
-- ✅ "create todoist task" requires project
-- ✅ Git context included when available
-- ✅ All three systems work
-- ✅ Interactive prompts guide user
+- Project name can be used (not just ID) for --project flag
+- Title is the only required field besides project
+- Labels and assignees are repeatable flags (can specify multiple)
+- Due date must be in YYYY-MM-DD format
+- Always use --format json for parsing output
+- Task is created in "active" status by default
