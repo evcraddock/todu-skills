@@ -5,176 +5,233 @@ description: MANDATORY skill for deleting registered projects. NEVER call script
 
 # Delete Registered Project
 
-**⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY delete project request.**
+**⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY delete
+project request.**
 
-**NEVER EVER call `delete-project.py` directly. This skill provides essential logic beyond just running the script:**
+**NEVER EVER call `todu project remove` directly. This skill provides essential
+logic beyond just running the CLI:**
 
 - Confirming deletion with the user using AskUserQuestion
 - Displaying project details before deletion
 - Handling errors gracefully
 - Providing clear feedback about the deletion
 
-Even if you've invoked this skill before in the conversation, you MUST invoke it again for each new delete request.
+Even if you've invoked this skill before in the conversation, you MUST invoke
+it again for each new delete request.
 
 ---
 
-This skill deletes a registered project from the project registry at `~/.local/todu/projects.json`.
+This skill deletes a registered project from the todu database using the
+`todu project remove` CLI command.
 
 ## When to Use
 
 - User explicitly mentions deleting/removing/unregistering a project
-- User says "delete project [nickname]"
+- User says "delete project [name]"
 - User wants to remove a fake or test project
 - User asks to remove a project from the registry
 
 ## What This Skill Does
 
 1. **Identify Project**
-   - Extract the nickname from user's request
-   - If not provided, list available projects and ask which to delete
+   - Extract the project name from user's request
+   - If not provided, run `todu project list --format json` and ask which to
+     delete
 
 2. **Load Project Details**
-   - Call `$PLUGIN_DIR/scripts/list-projects.py --format json` to get project info
-   - Find the project by nickname
+   - Run `todu project list --format json` to get all projects
+   - Find the project by name (case-insensitive search)
+   - Extract the project `id` (needed for remove command)
    - Display project details to user
 
-3. **Confirm Deletion**
-   - Use AskUserQuestion to confirm deletion
-   - Show project details: nickname, system, repo/project-id
-   - Ask: "Are you sure you want to delete this project?"
-   - Mention that associated cached issues will also be deleted
-   - Options: "Yes, delete everything" or "No, cancel"
+3. **Ask About Task Handling**
+   - Use AskUserQuestion to ask if user wants to delete associated tasks
+   - Options: "Delete project and tasks (--cascade)" or "Delete project only"
+   - This determines whether to use the --cascade flag
 
-4. **Delete Project and Issues**
-   - If confirmed, call `$PLUGIN_DIR/scripts/delete-project.py --nickname <nickname>`
-   - Script deletes project from registry
-   - Script also deletes all cached issue files from `~/.local/todu/issues/`
-   - Display success message with deleted project details and issue count
+4. **Confirm Deletion**
+   - Use AskUserQuestion to confirm deletion
+   - Show project details: name, description, status, system
+   - Show whether tasks will be deleted (based on cascade choice)
+   - Ask: "Are you sure you want to delete this project?"
+   - Options: "Yes, delete" or "No, cancel"
+
+5. **Delete Project**
+   - If confirmed, call `todu project remove <id>` with appropriate flags
+   - Use `--cascade` if user chose to delete tasks
+   - Use `--force` to skip CLI's built-in confirmation (we already confirmed)
+   - Parse output to confirm success
+   - Display success message with deleted project details
    - If cancelled, inform user no changes were made
 
 ## Example Interactions
 
-**User**: "Delete the ishould project"
+**User**: "Delete the todu-tests project"
 **Skill**:
 
-- Loads projects to find 'ishould'
+- Runs `todu project list --format json` to find 'todu-tests'
+- Finds project with id=22, name="todu-tests"
 - Shows project details:
 
-  ```
+  ```text
   Project to delete:
-  - Nickname: ishould
-  - System: github
-  - Repo: some-other/repo
-
-  This will also delete all cached issues for this project.
+  - Name: todu-tests
+  - Description: Test project for development
+  - Status: active
+  - System: local
+  - External ID: 9a2e6561-dbf8-4ff1-bc6d-69f47a43947f
   ```
 
-- Uses AskUserQuestion with:
-  - Question: "Are you sure you want to delete the 'ishould' project and its cached issues?"
-  - Options: "Yes, delete everything" / "No, cancel"
-- If "Yes": Calls `delete-project.py --nickname ishould`
-- Shows: "Project 'ishould' has been deleted successfully. Removed 5 cached issue files."
+- Asks about task handling:
+  - Question: "What should happen to tasks associated with this project?"
+  - Options: "Delete project and tasks (--cascade)" / "Delete project only"
+- User selects: "Delete project and tasks (--cascade)"
+- Confirms deletion:
+  - Question: "Are you sure you want to delete 'todu-tests'? This will also
+    delete all associated tasks."
+  - Options: "Yes, delete" / "No, cancel"
+- If "Yes": Calls `todu project remove 22 --cascade --force --format json`
+- Shows: "✅ Project 'todu-tests' has been deleted successfully."
 
 **User**: "Remove the test project"
 **Skill**:
 
-- Loads projects to find 'test'
+- Runs `todu project list --format json` to find 'test'
 - If not found: "Project 'test' not found. Available projects: [list]"
-- If found: Confirms and deletes as above
+- If found: Asks about tasks and confirms deletion as above
 
-## Script Interface
+## CLI Interface
+
+**List all projects** (to find project ID):
 
 ```bash
-# Delete a project by nickname (also deletes cached issues)
-$PLUGIN_DIR/scripts/delete-project.py --nickname <nickname>
-
-# Delete a project but keep cached issues
-$PLUGIN_DIR/scripts/delete-project.py --nickname <nickname> --keep-issues
+todu project list --format json
 ```
 
-Returns JSON on success:
+Returns array of projects with id, name, description, etc.
 
-```json
-{
-  "success": true,
-  "action": "deleted",
-  "nickname": "ishould",
-  "system": "github",
-  "repo": "some-other/repo",
-  "projectId": null,
-  "issuesDeleted": 5
-}
+**Remove project** (requires project ID from list command):
+
+```bash
+# Delete project only (keep tasks)
+todu project remove <id> --force --format json
+
+# Delete project and all associated tasks
+todu project remove <id> --cascade --force --format json
 ```
 
-Returns error if not found:
+**Flags:**
 
-```json
-{
-  "error": "Project 'nickname' not found",
-  "success": false
-}
+- `--cascade`: Delete all tasks associated with this project
+- `--force`: Skip the CLI's built-in confirmation prompt (we handle
+  confirmation ourselves)
+- `--format json`: Output in JSON format for parsing
+
+**Example:**
+
+```bash
+# Delete project with ID 22 and all its tasks
+todu project remove 22 --cascade --force --format json
 ```
 
-## Issue Cleanup Behavior
+**Output format**: The CLI outputs confirmation text. Parse output to verify
+success.
 
-By default, deleting a project also removes all cached issue files from `~/.local/todu/issues/`:
+## Task Deletion Behavior
 
-- **GitHub/Forgejo**: Deletes all files matching `{system}-{owner}_{repo}-*.json`
-  - Example: Deleting `ishould` (repo: `erik/ishould`) removes all `forgejo-erik_ishould-*.json` files
+The `--cascade` flag controls what happens to tasks associated with the project:
 
-- **Todoist**: Reads each `todoist-*.json` file and deletes those with matching `systemData.project_id`
-  - Example: Deleting project with ID `6c4gPChcmrqjWxpM` removes all tasks belonging to that project
+- **Without --cascade**: Only the project is deleted. Associated tasks remain
+  in the database but become orphaned (no project association).
 
-Use `--keep-issues` flag to skip issue cleanup and only remove the project from the registry.
+- **With --cascade**: Both the project and all its associated tasks are deleted
+  from the database.
+
+**Important**: Always ask the user which behavior they want using
+AskUserQuestion before deleting.
 
 ## Confirmation Flow
 
-**CRITICAL**: Always use AskUserQuestion before deletion:
+**CRITICAL**: Use AskUserQuestion twice - first for task handling, then for
+final confirmation:
+
+### Step 1: Ask about task handling
 
 ```python
 AskUserQuestion(
     questions=[{
-        "question": f"Are you sure you want to delete the '{nickname}' project from {system}? This will also delete all cached issues.",
-        "header": "Confirm Delete",
+        "question": f"What should happen to tasks associated with '{name}'?",
+        "header": "Task Handling",
         "multiSelect": false,
         "options": [
             {
-                "label": "Yes, delete everything",
-                "description": "Permanently remove this project and its cached issues"
+                "label": "Delete project and tasks",
+                "description": "Remove project and all associated tasks (--cascade)"
             },
             {
-                "label": "No, cancel",
-                "description": "Keep the project and issues"
+                "label": "Delete project only",
+                "description": "Keep tasks, only remove project"
             }
         ]
     }]
 )
 ```
 
-Only proceed with deletion if user selects "Yes, delete everything".
+### Step 2: Final confirmation
+
+```python
+# Adjust message based on cascade choice
+if cascade:
+    task_msg = "This will also delete all associated tasks."
+else:
+    task_msg = "Associated tasks will be kept."
+
+AskUserQuestion(
+    questions=[{
+        "question": f"Are you sure you want to delete the '{name}' project? {task_msg}",
+        "header": "Confirm Delete",
+        "multiSelect": false,
+        "options": [
+            {
+                "label": "Yes, delete",
+                "description": "Permanently remove this project"
+            },
+            {
+                "label": "No, cancel",
+                "description": "Keep the project"
+            }
+        ]
+    }]
+)
+```
+
+Only proceed with deletion if user selects "Yes, delete".
 
 ## Search Patterns
 
 Natural language queries the skill should understand:
 
-- "delete project [nickname]" → delete specific project
-- "remove [nickname]" → delete specific project
-- "unregister [nickname]" → delete specific project
-- "delete the [nickname] project" → delete specific project
-- "get rid of [nickname]" → delete specific project
+- "delete project [name]" → delete specific project
+- "remove [name]" → delete specific project
+- "unregister [name]" → delete specific project
+- "delete the [name] project" → delete specific project
+- "get rid of [name]" → delete specific project
 
 ## Error Handling
 
-- **Project not found**: List available projects and suggest correct nickname
-- **No projects registered**: Inform user registry is empty
-- **Delete failed**: Show error message from script
+- **Project not found**: List available projects and suggest correct name
+- **No projects registered**: Inform user no projects are registered
+- **Delete failed**: Parse CLI error output and show message
+- **CLI errors**: Check exit code and parse error output
 
 ## Notes
 
 - Deletion is permanent - project must be re-registered if needed
-- By default, also deletes all cached issue files for the project
-- Use `--keep-issues` flag if you want to preserve cached issues
-- Does not affect the actual repository/project, only the local registry and cache
-- Confirmation is mandatory to prevent accidental deletions
-- User can always cancel during confirmation
-- Issue cleanup happens after project removal from registry
+- Must use project ID (not name) for the remove command
+- Always use `--force` flag to skip CLI's built-in confirmation (we handle
+  confirmation ourselves with AskUserQuestion)
+- The `--cascade` flag determines whether associated tasks are also deleted
+- Does not affect the actual repository/project, only the database
+- Two-step confirmation: task handling choice + final confirmation
+- User can cancel at any point (task handling or final confirmation)
+- Without `--cascade`, tasks become orphaned but remain in the database
