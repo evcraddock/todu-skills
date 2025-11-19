@@ -1,47 +1,50 @@
 ---
 name: core-project-register
-description: MANDATORY skill for registering projects with nickname conflict resolution. NEVER call scripts/register-project.py directly - ALWAYS use this skill via the Skill tool. Use when you need to register a project (GitHub repo, Forgejo repo, or Todoist project). (plugin:core@todu)
+description: MANDATORY skill for registering projects with nickname conflict resolution. NEVER call 'todu project add' directly - ALWAYS use this skill via the Skill tool. Use when you need to register a project (GitHub repo, Forgejo repo, or local project). (plugin:core@todu)
 ---
 
 # Register Project
 
 **⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY project registration.**
 
-**NEVER EVER call `register-project.py` directly. This skill provides essential logic beyond just running the script:**
+**NEVER EVER call `todu project add` directly. This skill provides essential logic beyond just running the CLI command:**
 
 - Checking if project is already registered (avoiding duplicates)
 - Generating smart nickname suggestions from repo/project names
 - Handling nickname conflicts with user interaction via AskUserQuestion
 - Providing clear feedback about registration status
+- Proper error handling and JSON parsing
 
 Even if you've invoked this skill before in the conversation, you MUST invoke it again for each new registration request.
 
 ---
 
-This skill registers a project (GitHub repo, Forgejo repo, or Todoist project) in the project registry with intelligent nickname handling and conflict resolution.
+This skill registers a project (GitHub repo, Forgejo repo, or local project) in the project registry with intelligent nickname handling and conflict resolution.
 
 ## When to Use
 
-- Before syncing a repo/project for the first time
+- Before syncing a repo for the first time
 - User explicitly requests to register a project
 - Any operation that needs to ensure a project is registered
 - Called by sync skills before syncing
+- When creating a local-only project for task management
 
 ## What This Skill Does
 
 1. **Check if Already Registered**
-   - Call `$CLAUDE_PLUGIN_ROOT/core/scripts/resolve-project.py` with repo/project info
-   - If already registered, return success immediately
+   - Run `todu project list --format json` to get all registered projects
+   - Search for matching `external_id` (repo for GitHub/Forgejo) or matching `name` (for local projects)
+   - If already registered, return the project name and success immediately
    - If not registered, proceed to step 2
 
 2. **Generate Nickname Suggestion**
    - For GitHub/Forgejo repos: Extract repo name from owner/repo format (e.g., "evcraddock/todu" → "todu")
-   - For Todoist projects: Use project name if available, otherwise "project-{id}"
+   - For local projects: Use provided project name or generate from context
    - Normalize to lowercase, replace spaces with hyphens
 
 3. **Check for Nickname Conflicts**
-   - Load all registered projects
-   - Check if suggested nickname already exists
+   - Use the project list from step 1
+   - Check if suggested nickname already exists in `name` field
    - If no conflict, proceed to register
    - If conflict exists, go to step 4
 
@@ -51,19 +54,17 @@ This skill registers a project (GitHub repo, Forgejo repo, or Todoist project) i
      - Option 2: Suggested nickname with different variation
      - Option 3: User can select "Other" to provide custom nickname
    - Get user's choice
-   - If still conflicts, ask again
+   - Check again if new nickname conflicts
+   - If still conflicts, ask again with different suggestions
+   - Continue until unique nickname is found
 
-5. **Collect Additional Required Info**
-   - For Forgejo projects: Ask for base URL (e.g., https://forgejo.caradoc.com)
-   - This is required for Forgejo to know which instance to connect to
-
-6. **Register the Project**
-   - Call `$CLAUDE_PLUGIN_ROOT/core/scripts/register-project.py` with:
-     - `--nickname <chosen-nickname>`
-     - `--system <github|forgejo|todoist>`
-     - `--repo <owner/repo>` (for GitHub/Forgejo)
-     - `--project-id <id>` (for Todoist)
-     - `--base-url <url>` (for Forgejo)
+5. **Register the Project**
+   - Run `todu project add` with:
+     - `--name <chosen-nickname>` (this is the project name/nickname)
+     - `--system <github|forgejo>` (optional - defaults to local if omitted)
+     - `--external-id <owner/repo>` (for GitHub/Forgejo, auto-generated for local)
+     - `--format json` (for structured output)
+   - Parse the output to confirm success
    - Return success with registration details
 
 ## Example Interactions
@@ -71,21 +72,24 @@ This skill registers a project (GitHub repo, Forgejo repo, or Todoist project) i
 **User**: (via sync skill) "Sync evcraddock/rott"
 **Skill**:
 
+- Runs: `todu project list --format json`
 - Checks if evcraddock/rott is registered → Not found
 - Suggests nickname: "rott"
 - Checks for conflicts → No conflict
-- Registers: `register-project.py --nickname rott --system github --repo evcraddock/rott`
+- Runs: `todu project add --name rott --system github --external-id evcraddock/rott --format json`
 - Returns: "✅ Registered project 'rott' (evcraddock/rott)"
 
 **User**: (via sync skill) "Sync evcraddock/todu"
 **Skill**:
 
+- Runs: `todu project list --format json`
 - Checks if evcraddock/todu is registered → Already registered as "todu"
-- Returns: "Project already registered"
+- Returns: "✅ Project 'todu' already registered (evcraddock/todu)"
 
 **User**: (via sync skill) "Sync owner/repo-name" (nickname conflict exists)
 **Skill**:
 
+- Runs: `todu project list --format json`
 - Checks if owner/repo-name is registered → Not found
 - Suggests nickname: "repo-name"
 - Checks for conflicts → "repo-name" already exists!
@@ -100,55 +104,69 @@ This skill registers a project (GitHub repo, Forgejo repo, or Todoist project) i
   ```
 
 - User selects: "repo-name2"
-- Registers: `register-project.py --nickname repo-name2 --system github --repo owner/repo-name`
+- Runs: `todu project add --name repo-name2 --system github --external-id owner/repo-name --format json`
 - Returns: "✅ Registered project 'repo-name2' (owner/repo-name)"
 
-## Script Interface
+## CLI Interface
 
-Check if already registered:
+**List all projects** (check if already registered):
 
 ```bash
-# For GitHub/Forgejo repos
-$CLAUDE_PLUGIN_ROOT/core/scripts/list-projects.py --format json | grep "owner/repo"
-
-# For Todoist projects
-$CLAUDE_PLUGIN_ROOT/core/scripts/list-projects.py --format json | grep "projectId"
+todu project list --format json
 ```
 
-Register new project:
+Returns array of projects:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "todu",
+    "description": "",
+    "system_id": 1,
+    "external_id": "evcraddock/todu",
+    "status": "active",
+    "sync_strategy": "bidirectional",
+    "last_synced_at": "2025-11-19T20:15:43Z",
+    "created_at": "2025-11-19T19:53:12Z",
+    "updated_at": "2025-11-19T20:37:01Z"
+  }
+]
+```
+
+**Register new project**:
 
 ```bash
 # GitHub
-$CLAUDE_PLUGIN_ROOT/core/scripts/register-project.py \
-  --nickname <nickname> \
+todu project add \
+  --name <nickname> \
   --system github \
-  --repo <owner/repo>
+  --external-id <owner/repo> \
+  --format json
 
-# Forgejo (requires base URL)
-$CLAUDE_PLUGIN_ROOT/core/scripts/register-project.py \
-  --nickname <nickname> \
+# Forgejo
+todu project add \
+  --name <nickname> \
   --system forgejo \
-  --repo <owner/repo> \
-  --base-url <https://forgejo.instance.com>
+  --external-id <owner/repo> \
+  --format json
 
-# Todoist
-$CLAUDE_PLUGIN_ROOT/core/scripts/register-project.py \
-  --nickname <nickname> \
-  --system todoist \
-  --project-id <project-id>
+# Local (no external sync, system defaults to local)
+todu project add \
+  --name <nickname> \
+  --format json
 ```
 
-Returns JSON on success:
+**Note**: The `--format json` flag may not currently output JSON for the `add` command. Parse the text output or use `todu project show <id> --format json` to verify registration.
 
-```json
-{
-  "success": true,
-  "action": "created",
-  "nickname": "rott",
-  "system": "github",
-  "repo": "evcraddock/rott",
-  "projectId": null
-}
+Output on success (text format):
+
+```
+Created project 2: rott
+  System: 1
+  External ID: evcraddock/rott
+  Status: active
+  Sync Strategy: bidirectional
 ```
 
 ## Nickname Conflict Resolution Flow
@@ -182,7 +200,7 @@ AskUserQuestion(
 )
 ```
 
-3. **Validate Choice**:
+1. **Validate Choice**:
    - Check if user's chosen nickname also conflicts
    - If conflicts, ask again with different suggestions
    - Continue until unique nickname is found
@@ -193,16 +211,16 @@ This skill is called by:
 
 - `github:task-sync` - Before syncing GitHub repos
 - `forgejo:task-sync` - Before syncing Forgejo repos
-- `todoist:task-sync` - Before syncing Todoist projects
 - `github:task-create` - Before creating issues in unregistered repos
 - `forgejo:task-create` - Before creating issues in unregistered repos
-- `todoist:task-create` - Before creating tasks in unregistered projects
 
 ## Notes
 
 - Already-registered projects return success immediately (no duplicate registration)
 - Nickname suggestions are smart: derived from repo/project name
 - Conflict resolution is user-driven via AskUserQuestion
-- All registration uses the core register-project.py script
-- Registration is persistent in `~/.local/todu/projects.json`
-- Nicknames are used throughout the system for quick reference
+- All registration uses the `todu project add` CLI command
+- Project names (nicknames) must be unique across all systems
+- Use `todu project list --format json` to check for existing projects and conflicts
+- Error handling: Check CLI exit codes and parse output for error messages
+- The CLI stores projects in the todu database (configured via config.yaml)
