@@ -1,0 +1,24 @@
+{
+  "comments": [],
+  "task": {
+    "id": 1,
+    "external_id": "",
+    "title": "Sample task for testing",
+    "description": "This is a sample task created for testing and fixture generation",
+    "project_id": 1,
+    "status": "active",
+    "priority": "high",
+    "created_at": "2025-11-19T19:53:12.79334Z",
+    "updated_at": "2025-11-19T19:53:12.79334Z",
+    "labels": [
+      {
+        "id": 1,
+        "name": "testing"
+      },
+      {
+        "id": 2,
+        "name": "sample"
+      }
+    ]
+  }
+}

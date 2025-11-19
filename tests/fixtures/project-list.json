@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1,
+    "name": "todu-tests",
+    "description": "Test project for todu-skills development and testing",
+    "system_id": 1,
+    "external_id": "f7b6d301-a9e5-48ca-b5c2-5c0ac5561765",
+    "status": "active",
+    "sync_strategy": "bidirectional",
+    "created_at": "2025-11-19T19:53:12.72737Z",
+    "updated_at": "2025-11-19T19:53:12.72737Z"
+  }
+]

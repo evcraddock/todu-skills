@@ -1,474 +1,760 @@
-# Unified Core Skills Implementation - Complete
+# Implementation Plan: Convert Skills to Use `todu` CLI
 
-**Date**: 2025-11-03
-**Status**: ✅ FULLY IMPLEMENTED (All 10 Stages)
-**Implementation Time**: ~4 hours
+## Overview
 
-## Executive Summary
+This plan outlines the migration of all core skills from calling Python scripts directly to using the unified `todu` CLI application. Each skill will be updated to invoke appropriate `todu` commands instead of executing scripts via the plugin registry.
 
-Successfully consolidated 15 system-specific skills into 5 unified core skills with plugin-based routing system.
+## Goals
 
-### What Changed
+1. Replace all Python script calls with `todu` CLI commands
+2. Maintain existing skill interfaces and natural language parsing
+3. Simplify skill implementation by leveraging CLI's built-in functionality
+4. Ensure backward compatibility where possible
+5. Identify gaps in CLI functionality that need to be addressed
 
-**Before**: 15 system-specific skills (5 per system × 3 systems)
-- `github:task-create`, `github:task-update`, `github:task-sync`, `github:task-view`, `github:task-comment-create`
-- `forgejo:task-create`, `forgejo:task-update`, `forgejo:task-sync`, `forgejo:task-view`, `forgejo:task-comment-create`
-- `todoist:task-create`, `todoist:task-update`, `todoist:task-sync`, `todoist:task-view`, `todoist:task-comment-create`
+## Current Architecture
 
-**After**: 5 unified core skills
-- `core:task-create` - Create tasks/issues in any system
-- `core:task-update` - Update tasks/issues in any system
-- `core:task-sync` - Sync tasks/issues from any system
-- `core:task-view` - View task/issue details from any system
-- `core:task-comment-create` - Add comments to tasks/issues in any system
+**Before:**
 
-### Benefits Achieved
+- Skills call Python scripts directly via plugin registry
+- Each skill manages argument building and output parsing
+- Skills handle system-specific routing
 
-✅ **67% code reduction** (15 skills → 5 skills)
-✅ **Single interface** for all task operations
-✅ **Plugin-based** architecture for extensibility
-✅ **Unified ID resolution** ("update issue 20" works across systems)
-✅ **Git context awareness** (auto-detects system from remote)
-✅ **Natural language** parsing ("mark issue 20 as done")
+**After:**
+
+- Skills call `todu` CLI commands
+- CLI handles all system routing, argument parsing, and formatting
+- Skills focus on natural language parsing and user interaction
+
+## Migration Mapping
+
+### Project Management Skills
+
+#### 1. project-register → `todu project add`
+
+**Current Implementation:**
+
+- Calls `register-project.py` with `--nickname`, `--system`, `--repo`, `--project-id`
+- Handles nickname conflict resolution
+- Validates project not already registered
+
+**CLI Command:**
+
+```bash
+todu project add --name <nickname> --system <system> --external-id <repo-or-project-id>
+```
+
+**Changes Required:**
+
+- Replace script call with `todu project add`
+- Map `--nickname` → `--name`
+- Map `--repo` or `--project-id` → `--external-id`
+- Keep nickname conflict resolution logic
+- Check if project exists using `todu project list --format json`
+- Always use project name (not ID) in all CLI calls
+
+**Status:** ✅ Direct mapping available
 
 ---
 
-## Implementation Summary
+#### 2. project-list → `todu project list`
 
-### Stage 1: Plugin System Foundation ✅
+**Current Implementation:**
 
-**Files Created**:
-- `core/scripts/plugin_registry.py` - Plugin discovery and management
-- `core/scripts/test_plugin_registry.py` - Unit tests
+- Calls `list-projects.py` with `--format`, `--system`
+- Displays projects grouped by system
+- Shows nickname, repo/project-id, added date
 
-**Files Modified**:
-- `github/.claude-plugin/plugin.json` - Added todu metadata
-- `forgejo/.claude-plugin/plugin.json` - Added todu metadata
-- `todoist/.claude-plugin/plugin.json` - Added todu metadata
+**CLI Command:**
 
-**Extended Plugin Schema**:
-```json
-{
-  "system": "github",
-  "displayName": "GitHub",
-  "capabilities": {
-    "taskManagement": true,
-    "comments": true,
-    "labels": true
-  },
-  "scripts": {
-    "create": "scripts/create-issue.py",
-    "update": "scripts/update-issue.py",
-    "sync": "scripts/sync-issues.py",
-    "view": "scripts/view-issue.py",
-    "comment": "scripts/create-comment.py"
-  },
-  "requirements": {
-    "env": ["GITHUB_TOKEN"],
-    "description": "Get your token from https://github.com/settings/tokens"
-  }
-}
+```bash
+todu project list [--system <system>] [--format <table|json>]
 ```
 
-**Result**: All plugins discovered, script paths resolved correctly
+**Changes Required:**
+
+- Replace script call with `todu project list`
+- Parse JSON output and format for display
+- Maintain grouping by system in skill's display logic
+
+**Status:** ✅ Direct mapping available
 
 ---
 
-### Stage 2: Resolution Utilities ✅
+#### 3. project-update → `todu project update`
 
-**Files Created**:
-- `core/scripts/resolve_task.py` - Unified ID and description resolution
-- `core/scripts/git_context.py` - Git context extraction
-- `core/scripts/test_resolution.py` - Unit tests
+**Current Implementation:**
 
-**Capabilities**:
-- ✅ Resolve unified ID to system + repo + issue number
-- ✅ Resolve system-specific ID (e.g., "github #15")
-- ✅ Search by description with ambiguity handling
-- ✅ Extract git context (branch, commits, modified files)
-- ✅ Detect system from git remote URL
-- ✅ Parse repo from SSH and HTTPS remotes
+- Calls `update-project.py` with `--nickname`, `--new-nickname`, `--system`, `--repo`, `--project-id`
+- Interactive field selection via AskUserQuestion
+- Shows before/after comparison
 
-**Result**: All resolution paths tested and working
+**CLI Command:**
+
+```bash
+todu project update <name> [--name <new-name>] [--description <desc>] [--status <status>]
+```
+
+**Changes Required:**
+
+- Replace script call with `todu project update`
+- Use project name directly (CLI accepts name or ID)
+- Map `--new-nickname` → `--name`
+- Keep interactive field selection
+- Note: CLI doesn't support changing system or external-id
+
+**Status:** ⚠️ Partial mapping - system/external-id changes not supported
 
 ---
 
-### Stage 3: core:task-sync ✅
+#### 4. project-delete → `todu project remove`
 
-**File Created**: `core/skills/task-sync/SKILL.md`
+**Current Implementation:**
 
-**Features**:
-- Resolves project nickname ("sync vault")
-- Detects from git remote ("sync" in repo)
-- Explicit system + repo ("sync github evcraddock/todu")
-- Routes to correct system script via plugin registry
-- Ensures project registered before syncing
-- Reports sync results (new, updated, total)
+- Calls `delete-project.py` with `--nickname`
+- Confirms deletion with AskUserQuestion
+- Deletes cached issues by default
+- Optional `--keep-issues` flag
 
-**Usage Examples**:
+**CLI Command:**
+
+```bash
+todu project remove <name> [--cascade] [--force]
 ```
-"sync vault"           → syncs Forgejo erik/Vault
-"sync todu"           → syncs GitHub evcraddock/todu
-"sync"                → auto-detects from git remote
-"sync github owner/repo" → explicit system + repo
-```
+
+**Changes Required:**
+
+- Replace script call with `todu project remove`
+- Use project name directly (CLI accepts name or ID)
+- Map issue deletion behavior to `--cascade` flag
+- Keep confirmation logic, skip `--force` unless user confirms
+
+**Status:** ✅ Direct mapping available
 
 ---
 
-### Stage 4: core:task-view ✅
+### Task/Issue Management Skills
 
-**File Created**: `core/skills/task-view/SKILL.md`
+#### 5. task-create → `todu task create`
 
-**Features**:
-- View by unified ID ("view issue 20")
-- View by system-specific ID ("view github #15")
-- View by description search ("show auth bug")
-- Fetches fresh data from API
-- Displays full details with comments
-- Handles ambiguous matches with prompts
+**Current Implementation:**
 
-**Usage Examples**:
-```
-"view issue 20"        → looks up unified ID 20
-"show github #32"     → system-specific reference
-"view auth bug"       → searches description
-```
-
----
-
-### Stage 5: core:task-update ✅
-
-**File Created**: `core/skills/task-update/SKILL.md`
-
-**Features**:
-- Natural language parsing
-- Status updates (todo, inprogress, done)
-- Priority updates (low, medium, high, urgent)
-- Close/complete/cancel operations
-- Reopen closed tasks
-- Label management (GitHub/Forgejo)
-- Unified ID resolution
-
-**Usage Examples**:
-```
-"mark issue 20 as done"              → status: done
-"set priority high on issue 5"       → priority: high
-"close the auth bug"                 → searches + closes
-"start working on issue 12"          → status: inprogress
-"reopen issue 20"                    → reopens
-```
-
----
-
-### Stage 6: core:task-create ✅
-
-**File Created**: `core/skills/task-create/SKILL.md`
-
-**Features**:
-- Auto-detects system from git remote
+- Detects system from git remote or user input
+- Calls project-register skill to ensure registration
 - Extracts git context (branch, commits, files)
-- Interactive prompts for title, description, labels
-- Project registration if needed
-- Supports all three systems
-- Rich context in issue descriptions
+- Calls create script via plugin registry
+- Prompts for title, description, labels, priority
 
-**Usage Examples**:
-```
-"create issue"                       → detects from git remote
-"create github issue in owner/repo" → explicit system + repo
-"create task in daily"              → Todoist project
-```
-
-**Git Context** (automatically included):
-```markdown
-## Git Context
-**Branch**: feature/auth-fix
-**Recent Commits**:
-- abc1234 Add login validation
-- def5678 Fix cookie expiry
-
-**Modified Files**:
-- M src/auth.py
-- M tests/test_auth.py
-```
-
----
-
-### Stage 7: core:task-comment-create ✅
-
-**File Created**: `core/skills/task-comment-create/SKILL.md`
-
-**Features**:
-- Add comments by unified ID
-- Add comments by description search
-- Support inline body or prompt
-- Markdown formatting support
-- Multi-line comments
-- Confirmation with URL
-
-**Usage Examples**:
-```
-"comment on issue 20 saying 'Fixed in PR #42'" → inline body
-"add comment to issue 15"                      → prompts for body
-"comment on auth bug: still happening"         → search + comment
-```
-
----
-
-### Stage 8: Comprehensive Testing ✅
-
-**File Created**: `core/scripts/test_integration.py`
-
-**Tests Performed**:
-✅ Plugin discovery (all 3 plugins found)
-✅ Plugin capabilities (all operations available)
-✅ System detection from git remotes
-✅ Git context extraction
-✅ End-to-end resolution (ID → script path)
-✅ Script path resolution for all operations
-✅ Unified ID lookup and parsing
-
-**Result**: All tests passing
-
----
-
-## Architecture
-
-### Plugin Registry Flow
-
-```
-User Request → Core Skill → Resolve Task/Project → Plugin Registry → System Script
-```
-
-### Resolution Strategy
-
-1. **Unified ID** (highest priority)
-   - "20" → lookup in id_registry.json
-   - Returns system + repo + number
-
-2. **System-Specific ID**
-   - "github #15" → search cache for GitHub issue #15
-   - Returns repo + number
-
-3. **Description Search**
-   - "auth bug" → full-text search in cached issues
-   - Returns matches (prompts if multiple)
-
-4. **Git Context**
-   - If in git repo, extract from remote URL
-   - Detect system (github/forgejo)
-   - Parse repo (owner/repo)
-
-### File Structure
-
-```
-todu/
-├── .claude-plugin/
-│   └── marketplace.json                 # Plugin list
-├── core/
-│   ├── scripts/
-│   │   ├── plugin_registry.py          # NEW - Plugin discovery
-│   │   ├── resolve_task.py             # NEW - Task resolution
-│   │   ├── git_context.py              # NEW - Git context
-│   │   ├── id_registry.py              # Existing - Unified IDs
-│   │   ├── resolve-project.py          # Existing - Project resolution
-│   │   ├── test_plugin_registry.py     # NEW - Tests
-│   │   ├── test_resolution.py          # NEW - Tests
-│   │   └── test_integration.py         # NEW - Integration tests
-│   └── skills/
-│       ├── task-sync/                  # NEW - Unified sync
-│       ├── task-view/                  # NEW - Unified view
-│       ├── task-update/                # NEW - Unified update
-│       ├── task-create/                # NEW - Unified create
-│       ├── task-comment-create/        # NEW - Unified comment
-│       ├── project-register/           # Existing
-│       ├── project-list/               # Existing
-│       └── ...
-├── github/
-│   ├── .claude-plugin/
-│   │   └── plugin.json                 # UPDATED - Added todu metadata
-│   ├── scripts/                        # Existing - Implementation only
-│   └── README.md                       # Documentation
-├── forgejo/
-│   ├── .claude-plugin/
-│   │   └── plugin.json                 # UPDATED - Added todu metadata
-│   ├── scripts/                        # Existing - Implementation only
-│   └── README.md                       # Documentation
-└── todoist/
-    ├── .claude-plugin/
-    │   └── plugin.json                 # UPDATED - Added todu metadata
-    ├── scripts/                        # Existing - Implementation only
-    └── README.md                       # Documentation
-```
-
----
-
-## Migration Status
-
-### Phase 1: Parallel Development ✅ COMPLETE
-
-- ✅ Core skills implemented
-- ✅ Plugin system working
-- ✅ Resolution utilities tested
-- ✅ Integration tests passing
-- ✅ System-specific skills kept as fallback
-- ✅ No disruption to existing functionality
-
-### Phase 2: Soft Cutover ✅ SKIPPED
-
-Decided to proceed directly to hard cutover since:
-- All tests passing (100% coverage)
-- Having both old and new skills creates ambiguity
-- Can revert commit if issues discovered
-- Cleaner architecture without duplication
-
-### Phase 3: Hard Cutover ✅ COMPLETE
-
-- ✅ Removed system-specific skills (Stage 9)
-- ✅ Updated all documentation
-- ✅ Clean plugin architecture (implementation only)
-- ✅ Single source of truth (core skills)
-
----
-
-## Usage Guide
-
-### For Users
-
-Instead of system-specific commands:
-```bash
-# OLD WAY
-"sync my github issues"     → github:task-sync
-"view github issue #15"     → github:task-view
-"update todoist task"       → todoist:task-update
-```
-
-Use unified commands:
-```bash
-# NEW WAY
-"sync vault"               → core:task-sync (auto-routes to forgejo)
-"view issue 20"           → core:task-view (resolves unified ID)
-"mark issue 5 as done"    → core:task-update (resolves + updates)
-```
-
-### Benefits for Users
-
-1. **Don't need to know which system**: "sync vault" just works
-2. **Unified IDs**: "issue 20" works across all systems
-3. **Natural language**: "mark as done" instead of remembering flags
-4. **Git context**: Auto-detects repo from remote
-5. **Description search**: "update auth bug" finds the right task
-
----
-
-## Testing
-
-### Run All Tests
+**CLI Command:**
 
 ```bash
-# Plugin registry tests
-python3 core/scripts/test_plugin_registry.py
-
-# Resolution utilities tests
-python3 core/scripts/test_resolution.py
-
-# Integration tests
-python3 core/scripts/test_integration.py
+todu task create --project <project> --title <title> [--description <desc>] \
+  [--label <label>]... [--priority <priority>] [--assignee <assignee>]... \
+  [--due <YYYY-MM-DD>]
 ```
 
-### Expected Output
+**Changes Required:**
 
-All tests should pass:
-```
-✓ Discovered 3 plugins
-✓ All metadata loaded correctly
-✓ Script paths resolved
-✓ Git context extracted
-✓ End-to-end resolution working
-```
+- Replace script call with `todu task create`
+- Keep git context extraction logic
+- Use project name from git remote detection or user input
+- Inject git context into `--description`
+- Keep natural language prompting for fields
+- Always use `--project <name>`, never use project ID
+
+**Status:** ✅ Direct mapping available
 
 ---
 
-## Known Limitations
+#### 6. task-search → `todu task list`
 
-1. **Todoist Labels**: Not supported (Todoist capability limitation)
-2. **Todoist Assignees**: Not supported (personal task system)
-3. **Cross-system Search**: Currently searches within each system separately
-4. **Offline Mode**: Requires API access for view/create/update operations
+**Current Implementation:**
+
+- Calls `list-items.py` with filters: `--project`, `--status`, `--labels`, `--assignee`
+- Searches local cache
+- Groups results by project
+- Displays unified todu ID format (#42)
+
+**CLI Command:**
+
+```bash
+todu task list [--project <project>] [--status <status>] [--label <label>]... \
+  [--assignee <assignee>] [--priority <priority>] [--search <text>] \
+  [--due-before <date>] [--due-after <date>] [--limit <n>] [--format <text|json>]
+```
+
+**Changes Required:**
+
+- Replace script call with `todu task list`
+- Parse JSON output for custom formatting
+- Maintain unified ID display format (#42)
+- Keep grouping by project logic
+- Map natural language to CLI filters
+
+**Status:** ✅ Direct mapping available
 
 ---
 
-## Future Enhancements
+#### 7. task-view → `todu task show`
 
-### Potential Additions
+**Current Implementation:**
 
-1. **Fuzzy Matching**: Better description search with fuzzy matching
-2. **Cross-System Reports**: Aggregate views across all systems
-3. **Bulk Operations**: Update multiple tasks at once
-4. **Task Dependencies**: Link related tasks across systems
-5. **Webhooks**: Real-time sync from API webhooks
-6. **Offline Queue**: Queue operations when offline, sync later
+- Parses task ID from user input
+- Calls view script via plugin registry
+- Fetches fresh data from API
+- Displays title, description, status, labels, comments
 
-### Plugin System Extensions
+**CLI Command:**
 
-- Version compatibility checking
-- Plugin dependencies
-- Plugin configuration UI
-- Hot reload of plugins
-- Third-party plugin support
+```bash
+todu task show <id>
+```
+
+**Changes Required:**
+
+- Replace script call with `todu task show`
+- Pass task ID directly to CLI (no resolution needed)
+- Parse and format CLI output
+- Ensure comments are included
+
+**Status:** ✅ Direct mapping available
+
+---
+
+#### 8. task-update → `todu task update` / `todu task close`
+
+**Current Implementation:**
+
+- Natural language parsing: "mark as done", "set priority high"
+- Parses task ID from user input
+- Calls update script via plugin registry
+- Supports: status, priority, labels, assignees
+
+**CLI Commands:**
+
+```bash
+# General update
+todu task update <id> [--status <status>] [--priority <priority>] \
+  [--add-label <label>]... [--remove-label <label>]... \
+  [--add-assignee <user>]... [--remove-assignee <user>]... \
+  [--title <title>] [--description <desc>] [--due <date>]
+
+# Close shortcut
+todu task close <id>
+```
+
+**Changes Required:**
+
+- Replace script call with `todu task update` or `todu task close`
+- Keep natural language parsing logic
+- Map "mark as done" → `todu task close <id>`
+- Map "set priority high" → `todu task update <id> --priority high`
+- Pass task ID directly to CLI (no resolution needed)
+
+**Status:** ✅ Direct mapping available
+
+---
+
+#### 9. task-comment-create → `todu task comment`
+
+**Current Implementation:**
+
+- Parses task ID from user input
+- Prompts for comment body if not provided
+- Calls comment script via plugin registry
+- Supports markdown
+
+**CLI Command:**
+
+```bash
+todu task comment <id> <text>
+# or
+todu task comment <id> --message <text>
+```
+
+**Changes Required:**
+
+- Replace script call with `todu task comment`
+- Pass task ID directly to CLI (no resolution needed)
+- Keep comment body prompting
+- Use `--message` flag or positional argument
+
+**Status:** ✅ Direct mapping available
+
+---
+
+#### 10. task-sync → `todu sync`
+
+**Current Implementation:**
+
+- Detects system from git remote or nickname
+- Calls project-register skill to ensure registration
+- Calls sync script via plugin registry
+- Reports: synced count, new, updated
+
+**CLI Command:**
+
+```bash
+todu sync [--all] [--project <project>] [--system <system>] \
+  [--dry-run] [--strategy <pull|push|bidirectional>]
+```
+
+**Changes Required:**
+
+- Replace script call with `todu sync`
+- Keep system/project detection from git
+- Use project name directly with `--project <name>`
+- Parse sync results from CLI output
+- Note: May need to sync individual projects vs all
+
+**Status:** ✅ Direct mapping available
+
+---
+
+### Reporting Skills
+
+#### 11. task-report → `todu task list` (Multiple Calls)
+
+**Current Implementation:**
+
+- Calls `report.py` with `--type daily|weekly`
+- Generates markdown reports
+- Sections: In Progress, Due/Overdue, High Priority, Completed, Cancelled
+- Uses local cache, no API calls
+
+**CLI Commands:**
+
+```bash
+# Multiple calls to gather all needed data
+todu task list --status active --format json
+todu task list --due-before <today> --format json
+todu task list --priority high --format json
+# ... additional calls as needed
+```
+
+**Changes Required:**
+
+- Replace single script call with multiple `todu task list` calls
+- Use `--format json` to get structured data
+- Calculate today's date in skill for date filtering
+- Aggregate results from all calls
+- Build markdown report from aggregated data
+- Implement report generation logic in skill
+- Support both daily and weekly report types
+- Optional `--output` for saving to file
+
+**CLI Calls Needed:**
+
+**Daily Report:**
+
+1. In Progress: `todu task list --status active --format json`
+2. Overdue: `todu task list --due-before <yesterday> --format json`
+3. Due Today: Calculate from due dates in all tasks
+4. Coming Soon: `todu task list --due-after <today> --due-before <today+3days> --format json`
+5. High Priority: `todu task list --priority high --format json`
+6. Completed Today: Filter by updated date = today + status done/closed
+7. Canceled Today: Filter by updated date = today + status canceled
+
+**Weekly Report:**
+
+1. Similar to daily but with week date ranges
+2. Calculate week boundaries (Monday-Sunday)
+3. Use `--due-before` and `--due-after` for date ranges
+
+**Status:** ✅ Can be implemented with multiple CLI calls
+
+---
+
+#### 12. daily-review → `todu task list` (Multiple Calls)
+
+**Current Implementation:**
+
+- Calls `report.py --type daily`
+- Validates cache freshness
+- Sections: In Progress, Overdue, Due Today, Coming Soon, High Priority,
+  Completed Today, Canceled Today
+
+**CLI Commands:**
+
+```bash
+# Gather data with multiple todu task list calls
+todu task list --status active --format json
+todu task list --due-before <yesterday> --format json
+todu task list --priority high --format json
+todu task list --format json  # Get all tasks to filter by date ranges
+```
+
+**Changes Required:**
+
+- Make 3-5 parallel `todu task list` calls with different filters
+- Parse JSON output from each call
+- Apply additional filtering in skill (dates, completion status)
+- Check for `sync status` or sync metadata for cache freshness
+- Build daily review markdown with proper sections
+- Calculate "today", "overdue", "coming soon" in local timezone
+- Group and format results
+
+**Implementation Strategy:**
+
+1. **Get all tasks once:** `todu task list --format json --limit 1000`
+2. **Filter in skill logic:**
+   - In Progress: Filter `status == "active"` or `status == "in-progress"`
+   - Overdue: Filter `due_date < today` and `status != "done"`
+   - Due Today: Filter `due_date == today`
+   - Coming Soon: Filter `today < due_date <= today+3days`
+   - High Priority: Filter `priority == "high"`
+   - Completed Today: Filter `status == "done"` and `updated_at >= today`
+   - Canceled Today: Filter `status == "canceled"` and `updated_at >= today`
+3. **Format as markdown report**
+4. **Optional:** Save to file if output path provided
+
+**Status:** ✅ Direct implementation with CLI calls
+
+---
+
+#### 13. weekly-review → `todu task list` (Multiple Calls)
+
+**Current Implementation:**
+
+- Calls `weekly-review.py`
+- Organizes by: Waiting, Next, Active, Backlog, Completed, Cancelled
+- Uses label-based categorization (status:waiting, priority:high/medium/low)
+- Filters completed/cancelled by calendar week
+
+**CLI Commands:**
+
+```bash
+# Get all tasks and filter in skill
+todu task list --format json --limit 1000
+
+# Or use label filters if available
+todu task list --label "status:waiting" --format json
+todu task list --label "priority:high" --format json
+todu task list --label "priority:medium" --format json
+todu task list --label "priority:low" --format json
+```
+
+**Changes Required:**
+
+- Call `todu task list --format json` once or multiple times with label filters
+- Calculate calendar week boundaries (Monday-Sunday) in skill
+- Filter tasks by labels in skill logic:
+  - Waiting: `label includes "status:waiting"`
+  - Next: `label includes "priority:high"`
+  - Active: `label includes "priority:medium"`
+  - Backlog: `label includes "priority:low"` or no priority label
+  - Completed: `status == "done"` and `updated_at in current_week`
+  - Canceled: `status == "canceled"` and `updated_at in current_week`
+- Support `--week <YYYY-MM-DD>` parameter for specific week
+- Build markdown report with sections
+- Optional file output
+
+**Implementation Strategy:**
+
+1. **Calculate week range:**
+   - Default: current week (Monday-Sunday)
+   - If `--week` provided: use that Monday as start
+2. **Get all tasks:** `todu task list --format json --limit 1000`
+3. **Filter and categorize in skill:**
+   - Parse labels array for priority/status
+   - Parse updated_at timestamps for weekly completion
+   - Group by category
+4. **Format as markdown with checkboxes**
+5. **Save to file if requested**
+
+**Status:** ✅ Direct implementation with CLI calls
+
+---
+
+## Implementation Stages
+
+### Stage 1: Convert All Skills (Skills 1-13)
+
+**Goal:** Convert all skills to use `todu` CLI commands
+
+**Tasks:**
+
+**Project Management Skills:**
+
+1. Update project-register skill to use `todu project add`
+2. Update project-list skill to use `todu project list`
+3. Update project-update skill to use `todu project update`
+4. Update project-delete skill to use `todu project remove`
+
+**Task Management Skills:**
+
+1. Update task-create skill to use `todu task create`
+2. Update task-search skill to use `todu task list`
+3. Update task-view skill to use `todu task show`
+4. Update task-update skill to use `todu task update`/`close`
+5. Update task-comment-create skill to use `todu task comment`
+6. Update task-sync skill to use `todu sync`
+
+**Reporting Skills (Multiple CLI Calls):**
+
+1. Update task-report skill to use multiple `todu task list` calls
+2. Update daily-review skill to use multiple `todu task list` calls
+3. Update weekly-review skill to use multiple `todu task list` calls
+
+**Success Criteria:**
+
+- All skills invoke `todu` CLI commands instead of Python scripts
+- Natural language parsing preserved
+- User interaction (AskUserQuestion) preserved
+- Existing functionality maintained
+- Reporting skills generate same output using aggregated CLI calls
+
+**Tests Required:**
+
+- Each skill end-to-end with various inputs
+- Error handling for invalid inputs
+- Edge cases (ambiguous tasks, missing projects, etc.)
+- Report output validation (compare before/after)
+- Performance testing for reporting skills (multiple CLI calls)
+
+---
+
+### Stage 2: Cleanup & Documentation
+
+**Goal:** Clean up obsolete scripts and update documentation
+
+**Tasks:**
+
+1. Remove unused Python scripts from `core/scripts/`
+2. Update skill documentation (SKILL.md files)
+3. Update README files
+4. Run `markdownlint-cli2 --fix "**/*.md"`
+5. Test all skills end-to-end
+6. Create migration guide for users
+
+**Success Criteria:**
+
+- No unused scripts remain
+- Documentation accurate and current
+- All tests passing
+- Migration guide complete
+
+---
+
+## Breaking Changes & Considerations
+
+### 1. Project Names (Not IDs)
+
+**Issue:** Skills work with project nicknames/names, not numeric IDs
+
+**Solution:**
+
+- Always use project names when calling `todu` CLI commands
+- CLI accepts either name or ID, so use names for consistency
+- No need to look up project IDs
+- Project names are more user-friendly and match existing skill behavior
+
+### 2. External ID Changes Not Supported
+
+**Issue:** `todu project update` doesn't support changing external-id or system
+
+**Solution:**
+
+- Document limitation in skill
+- Suggest using `project remove` + `project add` for these changes
+- Or keep Python script for this specific functionality
+
+### 3. Task ID Handling
+
+**Issue:** How to handle task IDs when calling CLI
+
+**Solution:**
+
+- Pass task IDs directly to `todu` CLI commands
+- No need for `resolve_task()` - CLI handles system routing internally
+- Skills can parse task IDs from user input (natural language)
+- CLI takes care of mapping to correct system and external ID
+
+### 4. Output Formatting
+
+**Issue:** CLI has different output formats than Python scripts
+
+**Solution:**
+
+- Use `--format json` for all CLI calls
+- Parse JSON and format for display in skills
+- Maintain consistent user experience
+
+### 5. Git Context Extraction
+
+**Issue:** CLI doesn't extract git context automatically
+
+**Solution:**
+
+- Keep git context extraction in task-create skill
+- Inject context into `--description` field
+- Maintain current functionality
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+
+- Test each skill's natural language parsing
+- Test CLI command construction
+- Test output parsing and formatting
+
+### Integration Tests
+
+- End-to-end tests for each skill
+- Test with real todu CLI
+- Test error conditions
+
+### Regression Tests
+
+- Ensure existing workflows still work
+- Compare output before/after migration
+- Test edge cases
 
 ---
 
 ## Rollback Plan
 
-If issues are discovered:
+If migration causes issues:
 
-1. **Revert the commit** that removed system-specific skills
-2. **Mark core skills as experimental** in descriptions
-3. **Document known issues** in SKILL.md files
-4. **Fix issues** and re-test
-5. **Retry removal** when stable
-
-Rollback is simple: `git revert HEAD` restores old skills immediately.
+1. Keep Python scripts temporarily
+2. Add feature flag to switch between script and CLI
+3. Allow gradual rollout per skill
+4. Monitor for issues and revert if needed
 
 ---
 
-## Conclusion
+## Timeline Estimates
 
-**Implementation Status**: ✅ **FULLY COMPLETE**
+### Stage 1: Convert All Skills (Skills 1-13)
 
-All 10 stages of the implementation plan have been successfully completed:
+**Duration:** 4-6 days
 
-1. ✅ Plugin System Foundation
-2. ✅ Resolution Utilities
-3. ✅ Core Task Sync
-4. ✅ Core Task View
-5. ✅ Core Task Update
-6. ✅ Core Task Create
-7. ✅ Core Task Comment
-8. ✅ Comprehensive Testing
-9. ✅ Remove System-Specific Skills
-10. ✅ Documentation
+**Breakdown:**
 
-The unified task management system is **fully deployed and ready for production use**.
+- Project management skills (4 skills): 1 day
+- Task management skills (6 skills): 2 days
+- Reporting skills (3 skills): 1-2 days
+  - More complex due to multiple CLI calls
+  - Report generation logic in skill
+  - Date filtering and aggregation
+- Testing and validation: 1 day
 
-### Success Metrics
+### Stage 2: Cleanup & Documentation
 
-✅ **67% code reduction** (15 skills → 5 skills)
-✅ **100% test coverage** (all tests passing)
-✅ **3 systems supported** (GitHub, Forgejo, Todoist)
-✅ **5 operations** (create, update, sync, view, comment)
-✅ **Clean architecture** (no duplication, no conflicts)
-✅ **Single source of truth** (core skills only)
+**Duration:** 1-2 days
 
-### Next Steps
+- Remove unused Python scripts
+- Update documentation
+- Run markdown linter
+- Final end-to-end testing
+- Create migration guide
 
-1. Use core skills in production
-2. Monitor for edge cases
-3. Gather user feedback
-4. Iterate and improve based on real usage
-5. Consider future enhancements (fuzzy search, bulk ops, etc.)
+**Total:** 5-8 days
 
 ---
 
-**End of Implementation Summary**
+## Dependencies
+
+### Required Before Starting
+
+- ✅ `todu` CLI installed and working
+- ✅ All plugins registered in CLI
+- ✅ Projects migrated to CLI's database
+- ✅ `todu task list` supports all needed filters (--status, --priority, --label,
+  --due-before, --due-after, --format json)
+
+### External Dependencies
+
+- None! All functionality can be implemented using existing CLI commands
+
+---
+
+## Success Metrics
+
+1. **Code Reduction:** Reduce skill code by ~50-60%
+   - No argument building for system-specific APIs
+   - No plugin registry routing logic
+   - No `resolve_task()` or ID mapping
+   - No system detection/resolution code
+2. **Maintainability:** Single source of truth in CLI for all operations
+3. **Consistency:** All operations go through same code path
+4. **Performance:** No degradation in skill response time
+5. **Compatibility:** All existing workflows continue working
+6. **Simplicity:** Skills focus purely on natural language → CLI command mapping
+
+---
+
+## Risks & Mitigation
+
+### Risk 1: Performance of Multiple CLI Calls for Reports
+
+**Issue:** Reporting skills need to make multiple `todu task list` calls, which
+may be slower than single Python script execution
+
+**Mitigation:**
+
+- Use single `todu task list --format json --limit 1000` call to get all tasks
+- Filter and aggregate in skill logic (in-memory operations are fast)
+- Only make multiple calls if absolutely necessary for performance
+- Benchmark before/after to measure actual impact
+- Consider adding caching if needed
+
+### Risk 2: Breaking Changes to User Workflows
+
+**Mitigation:** Maintain skill interfaces, thorough testing
+
+### Risk 3: Task ID Parsing from Natural Language
+
+**Mitigation:**
+
+- Keep natural language parsing in skills
+- Extract task ID from user input ("issue 42", "task #15", etc.)
+- Pass parsed ID directly to CLI
+- CLI handles all system routing
+
+### Risk 4: Date/Time Calculations in Skills
+
+**Issue:** Skills need to handle timezone-aware date calculations for reports
+
+**Mitigation:**
+
+- Use skill's environment date/time functions
+- Test with different timezones
+- Document timezone handling clearly
+- Match Python script behavior exactly
+
+---
+
+## Notes
+
+- All skills should continue to use the Skill tool invocation pattern
+- Skills maintain responsibility for natural language understanding
+- CLI handles all system-specific implementation details
+- Error messages should remain user-friendly
+- Markdown formatting preserved throughout
+- **IMPORTANT:** Always use project names (not IDs) in all `todu` CLI calls
+  - The CLI accepts either name or ID
+  - Project names are user-friendly and match current skill behavior
+  - No need for ID lookup or mapping
+- **Task IDs:** Pass directly to CLI - no `resolve_task()` needed
+  - Skills only need to parse task ID from user's natural language input
+  - CLI handles all system routing and external ID mapping
+  - No need for ID registry or resolution logic
+
+---
+
+## Next Steps
+
+1. Review this plan
+2. Verify `todu` CLI has all required functionality:
+   - `todu task list --format json` with filters
+   - `todu project` commands accept names
+   - `todu sync` accepts project names
+3. Begin Stage 1 implementation:
+   - Start with project management skills (simpler)
+   - Move to task management skills
+   - Finish with reporting skills (most complex)
+4. Test thoroughly at each step
+5. Document any CLI issues or missing features discovered
