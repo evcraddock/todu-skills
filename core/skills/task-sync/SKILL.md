@@ -76,6 +76,7 @@ The skill determines which system and project to sync using this priority:
 **User**: "Sync vault"
 
 **Skill**:
+
 1. Resolves "vault" → {system: forgejo, repo: erik/Vault}
 2. Gets script path from plugin registry
 3. Calls sync script via registry.build_args()
@@ -86,6 +87,7 @@ The skill determines which system and project to sync using this priority:
 **User**: "Sync" (while in evcraddock/todu git repo)
 
 **Skill**:
+
 1. Detects git remote → github.com:evcraddock/todu
 2. Determines system: github, repo: evcraddock/todu
 3. Ensures project registered as "todu"
@@ -97,6 +99,7 @@ The skill determines which system and project to sync using this priority:
 **User**: "Sync github evcraddock/rott"
 
 **Skill**:
+
 1. Parses explicit format → system: github, repo: evcraddock/rott
 2. Ensures project registered
 3. Calls sync script via registry
@@ -107,6 +110,7 @@ The skill determines which system and project to sync using this priority:
 **User**: "Sync my tasks"
 
 **Skill**:
+
 1. Not in git repo, no context
 2. Lists available systems with task counts:
    - GitHub: 2 projects (13 tasks)
@@ -169,6 +173,7 @@ def sync_task():
 All sync scripts are called via the plugin registry's interface system. The skill uses `registry.build_args(system, 'sync', params={'repo': repo})` which automatically builds the correct arguments.
 
 **System-agnostic approach:**
+
 ```python
 # Works for ANY system
 registry = get_registry()
@@ -178,6 +183,7 @@ result = subprocess.run([str(script_path)] + args, ...)
 ```
 
 **Output** (JSON to stdout - same format for all systems):
+
 ```json
 {
   "synced": 45,

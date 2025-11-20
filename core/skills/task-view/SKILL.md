@@ -58,19 +58,25 @@ This skill displays full details of a task/issue from any system, including titl
 ## Resolution Examples
 
 ### By Unified ID
+
 **User**: "view issue 20"
+
 - Looks up ID 20 in registry
 - Finds `github-evcraddock_todu-11.json`
 - Calls view script via registry.build_args()
 
 ### By System-Specific ID
+
 **User**: "show github #15"
+
 - Searches cache for github issue #15
 - Finds in evcraddock/rott
 - Calls view script with those details
 
 ### By Description
+
 **User**: "view auth bug"
+
 - Searches all cached issues for "auth"
 - If single match: displays it
 - If multiple: prompts user to select
@@ -83,6 +89,7 @@ This skill displays full details of a task/issue from any system, including titl
 **User**: "View issue 20"
 
 **Skill**:
+
 1. Looks up unified ID 20 → github-evcraddock_todu-11.json
 2. Parses: system=github, repo=evcraddock/todu, number=11
 3. Calls view script via registry
@@ -112,9 +119,11 @@ Todu ID: 20
 **User**: "Show task about sync"
 
 **Skill**:
+
 1. Searches for "sync" in all tasks
 2. Finds 3 matches
 3. Prompts:
+
 ```
 Found 3 tasks matching 'sync':
   [1] ID 15 - Fix sync timing issue (github)
@@ -123,7 +132,7 @@ Found 3 tasks matching 'sync':
 
 Which task would you like to view? (1-3)
 ```
-4. User selects, then displays that task
+1. User selects, then displays that task
 
 ## Implementation Pseudocode
 
@@ -163,6 +172,7 @@ def view_task():
 All view scripts are called via the plugin registry's interface system. The skill uses `registry.build_args(system, 'view', task_data=task)` which automatically builds the correct arguments based on the system's interface specification in `todu.json`.
 
 **Example (no hardcoded system checks needed):**
+
 ```python
 # Works for ANY system (github, forgejo, todoist, future systems)
 registry = get_registry()
@@ -172,6 +182,7 @@ result = subprocess.run([str(script_path)] + args, ...)
 ```
 
 **Output** (JSON to stdout - same format for all systems):
+
 ```json
 {
   "id": 20,
