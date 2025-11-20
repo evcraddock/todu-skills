@@ -7,19 +7,19 @@ description: MANDATORY skill for updating tasks/issues. NEVER call update script
 
 **⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY update request.**
 
-**NEVER EVER call update scripts directly. This skill provides essential unified logic:**
+**NEVER EVER call `todu task update` or `todu task close` directly. This skill
+provides essential logic:**
 
-- Unified ID resolution ("update issue 20")
-- Natural language parsing ("mark issue 5 as done", "set priority high on task 12")
-- System-specific ID resolution ("update github #15")
-- Description search resolution ("mark auth bug as in-progress")
-- Plugin-based routing to correct update script
-- Validation of allowed values
-- Handling ambiguous matches
+- Natural language parsing ("mark task 39 as done", "set priority high on task 12")
+- Field extraction (status, priority, labels, assignees, title, description)
+- Command selection (update vs close)
+- Validation of values
+- Providing clear feedback about changes
 
 ---
 
-This skill updates properties of tasks/issues in any system: status, priority, labels, assignees, close/reopen.
+This skill updates properties of tasks using the `todu task update` and
+`todu task close` CLI commands.
 
 ## When to Use
 
@@ -27,238 +27,314 @@ This skill updates properties of tasks/issues in any system: status, priority, l
 - User wants to mark a task as done/complete/in-progress
 - User wants to set priority or add labels
 - User wants to close or cancel a task
-- User wants to reopen a task
+- User wants to add or remove assignees
 - User provides ANY update instruction for a task
 
 ## What This Skill Does
 
 1. **Parse Update Request**
-   - Extract task identifier (ID, description, etc.)
-   - Parse what to update (status, priority, close, etc.)
-   - Extract new values
+   - Extract task ID from user's request
+   - Parse what to update (status, priority, labels, assignees, etc.)
+   - Extract new values from natural language
 
-2. **Resolve Task**
-   - Use resolve_task() to find system + repo + number
-   - Handle ambiguous matches with user prompts
-   - Validate task exists
+2. **Determine CLI Command**
+   - "mark as done" / "close" → `todu task close <id>`
+   - All other updates → `todu task update <id> [flags]`
 
-3. **Validate Updates**
-   - Check allowed values for status/priority
-   - Validate against system capabilities
-   - Warn if unsupported (e.g., labels on Todoist)
+3. **Build CLI Command**
+   - Add appropriate flags based on parsed updates:
+     - `--status <status>` (active, waiting, done, canceled)
+     - `--priority <priority>` (low, medium, high)
+     - `--add-label <label>` (repeatable)
+     - `--remove-label <label>` (repeatable)
+     - `--add-assignee <user>` (repeatable)
+     - `--remove-assignee <user>` (repeatable)
+     - `--title <new title>`
+     - `--description <new description>`
+     - `--due <YYYY-MM-DD>`
+     - `--format json`
 
-4. **Route to Update Script**
-   - Use plugin registry to get script path and build arguments
-   - Call update script (system-agnostic via interface spec)
+4. **Execute Command**
+   - Run the CLI command
+   - Capture output
 
 5. **Report Results**
    - Show what was updated
-   - Display new values
-   - Show task URL
+   - Confirm the changes
+   - Display task ID
 
-## Natural Language Shortcuts
+## Natural Language Patterns
 
 The skill understands these natural language patterns:
 
-- **Status updates**:
-  - "mark issue 20 as done" → status: done
-  - "set task 5 to in-progress" → status: inprogress
-  - "start working on issue 12" → status: inprogress
-  - "mark as todo" → status: todo
-  - "mark as waiting" → status: waiting
-  - "set to blocked" → status: waiting
-  - "waiting on external review" → status: waiting
+### Status Updates
 
-- **Close/Complete**:
-  - "close issue 20" → close with default reason
-  - "complete task 5" → close/complete
-  - "cancel issue 15" → close as cancelled
-  - "mark as done" → complete
+- "mark task 39 as done" → `todu task close 39`
+- "set task 5 to waiting" → `todu task update 5 --status waiting`
+- "start working on task 12" → `todu task update 12 --status active`
+- "mark as active" → `--status active`
+- "set to canceled" → `--status canceled`
 
-- **Priority**:
-  - "set priority high on issue 20" → priority: high
-  - "make task 5 urgent" → priority: urgent
-  - "set priority low" → priority: low
+### Close/Complete
 
-- **Reopen**:
-  - "reopen issue 20" → reopen
-  - "unclose task 5" → reopen
+- "close task 20" → `todu task close 20`
+- "complete task 5" → `todu task close 5`
+- "mark task 15 as done" → `todu task close 15`
+
+### Priority
+
+- "set priority high on task 20" → `todu task update 20 --priority high`
+- "make task 5 low priority" → `todu task update 5 --priority low`
+- "set priority medium" → `--priority medium`
+
+### Labels
+
+- "add label bug to task 20" → `todu task update 20 --add-label bug`
+- "add labels bug and enhancement" → `--add-label bug --add-label enhancement`
+- "remove label testing from task 5" → `todu task update 5 --remove-label testing`
+
+### Assignees
+
+- "assign task 20 to alice" → `todu task update 20 --add-assignee alice`
+- "assign to alice and bob" → `--add-assignee alice --add-assignee bob`
+- "unassign bob from task 5" → `todu task update 5 --remove-assignee bob`
+
+### Title
+
+- "rename task 20 to 'Fix auth bug'" → `todu task update 20 --title "Fix auth bug"`
+- "change title to 'New title'" → `--title "New title"`
+
+### Description
+
+- "update description of task 20" → `todu task update 20 --description "New description"`
+
+### Due Date
+
+- "set due date to 2025-12-31 on task 20" → `todu task update 20 --due 2025-12-31`
+- "remove due date" → `--due ""`
 
 ## Example Interactions
 
-### Example 1: Update Status by Unified ID
+### Example 1: Close Task
 
-**User**: "Mark issue 20 as in-progress"
-
-**Skill**:
-
-1. Parses: ID=20, update=status:inprogress
-2. Resolves ID 20 → github-evcraddock_todu-11
-3. System=github, repo=evcraddock/todu, number=11
-4. Calls update script via registry.build_args()
-5. Shows: "✅ Updated issue #11 (evcraddock/todu) → Status: in-progress"
-
-### Example 2: Close by Description
-
-**User**: "Close the auth bug"
+**User**: "Mark task 39 as done"
 
 **Skill**:
 
-1. Parses: description="auth bug", action=close
-2. Searches for "auth bug" → finds ID 15
-3. Resolves → forgejo-erik_vault-8
-4. Calls update script via registry
-5. Shows: "✅ Closed issue #8 (erik/Vault)"
+1. Parses: ID=39, action=close
+2. Executes: `todu task close 39 --format json`
+3. Shows: "✅ Task #39 closed successfully"
+
+### Example 2: Update Status
+
+**User**: "Set task 5 to waiting"
+
+**Skill**:
+
+1. Parses: ID=5, update=status:waiting
+2. Executes: `todu task update 5 --status waiting --format json`
+3. Shows: "✅ Task #5 updated: status=waiting"
 
 ### Example 3: Set Priority
 
-**User**: "Set priority high on issue 5"
+**User**: "Set priority high on task 12"
 
 **Skill**:
 
-1. Parses: ID=5, update=priority:high
-2. Resolves → system + repo + number
-3. Validates "high" is allowed priority
-4. Calls update script with --priority high
-5. Shows: "✅ Updated priority: high"
+1. Parses: ID=12, update=priority:high
+2. Executes: `todu task update 12 --priority high --format json`
+3. Shows: "✅ Task #12 updated: priority=high"
 
-### Example 4: Multiple Updates
+### Example 4: Add Labels
 
-**User**: "Mark issue 20 as in-progress with high priority"
+**User**: "Add labels bug and enhancement to task 20"
 
 **Skill**:
 
-1. Parses: ID=20, updates=[status:inprogress, priority:high]
-2. Resolves task
-3. Calls update script with both flags
-4. Shows: "✅ Updated issue #20: status=in-progress, priority=high"
+1. Parses: ID=20, add_labels=[bug, enhancement]
+2. Executes: `todu task update 20 --add-label bug --add-label enhancement
+   --format json`
+3. Shows: "✅ Task #20 updated: added labels [bug, enhancement]"
 
-### Example 5: Ambiguous Match
+### Example 5: Multiple Updates
 
-**User**: "Mark sync task as done"
+**User**: "Set task 15 to active with high priority and assign to alice"
 
 **Skill**:
 
-1. Searches for "sync" → finds 3 matches
-2. Prompts:
+1. Parses: ID=15, updates=[status:active, priority:high, add_assignee:alice]
+2. Executes: `todu task update 15 --status active --priority high
+   --add-assignee alice --format json`
+3. Shows: "✅ Task #15 updated: status=active, priority=high, assignee=alice"
 
-```
-Found 3 tasks matching 'sync':
-  [1] ID 15 - Fix sync timing issue
-  [2] ID 22 - Add sync progress bar
-  [3] ID 31 - Todoist sync not working
+### Example 6: Remove Label
 
-Which task? (1-3)
-```
+**User**: "Remove label testing from task 8"
 
-3. User selects #2
-4. Updates that task
+**Skill**:
 
-## Implementation Pseudocode
+1. Parses: ID=8, remove_labels=[testing]
+2. Executes: `todu task update 8 --remove-label testing --format json`
+3. Shows: "✅ Task #8 updated: removed label [testing]"
 
-```python
-import sys
-from pathlib import Path
+## CLI Command Reference
 
-sys.path.append(str(Path(__file__).parent.parent.parent / 'scripts'))
-from resolve_task import resolve_task, AmbiguousTaskError
-from plugin_registry import get_registry
+**Close a task:**
 
-def update_task():
-    # 1. Parse user message
-    identifier, updates = parse_update_request(user_message)
-    # e.g., identifier="20", updates={'status': 'inprogress'}
-
-    # 2. Resolve task
-    try:
-        task = resolve_task(identifier)
-    except AmbiguousTaskError as e:
-        task = prompt_user_to_select(e.matches)
-
-    # 3. Validate updates
-    validate_updates(updates, task['system'])
-
-    # 4. Get script path and build args from interface
-    registry = get_registry()
-    script_path = registry.get_script_path(task['system'], 'update')
-    args = registry.build_args(task['system'], 'update',
-                                task_data=task, params=updates)
-
-    # 5. Call script (system-agnostic)
-    result = subprocess.run([str(script_path)] + args, ...)
-
-    # 7. Display result
-    print(f"✅ Updated {task['system']} issue #{task['number']}")
+```bash
+todu task close <id> --format json
 ```
 
-## Script Interface
+**Update status:**
 
-All update scripts are called via the plugin registry's interface system. The skill uses `registry.build_args(system, 'update', task_data=task, params=updates)` which automatically builds the correct arguments.
-
-**System-agnostic approach:**
-
-```python
-# Works for ANY system
-registry = get_registry()
-script_path = registry.get_script_path(task['system'], 'update')
-args = registry.build_args(task['system'], 'update',
-                            task_data=task,
-                            params={'status': 'inprogress', 'priority': 'high'})
-result = subprocess.run([str(script_path)] + args, ...)
+```bash
+todu task update <id> --status active --format json
+todu task update <id> --status waiting --format json
+todu task update <id> --status done --format json
+todu task update <id> --status canceled --format json
 ```
 
-**Output** (JSON to stdout - same format for all systems):
+**Update priority:**
 
-```json
-{
-  "updated": true,
-  "changes": {
-    "status": "inprogress",
-    "priority": "high"
-  },
-  "url": "https://...",
-  "title": "Fix auth bug"
-}
+```bash
+todu task update <id> --priority low --format json
+todu task update <id> --priority medium --format json
+todu task update <id> --priority high --format json
 ```
+
+**Add/remove labels:**
+
+```bash
+todu task update <id> --add-label bug --format json
+todu task update <id> --add-label bug --add-label enhancement --format json
+todu task update <id> --remove-label testing --format json
+```
+
+**Add/remove assignees:**
+
+```bash
+todu task update <id> --add-assignee alice --format json
+todu task update <id> --add-assignee alice --add-assignee bob --format json
+todu task update <id> --remove-assignee alice --format json
+```
+
+**Update title:**
+
+```bash
+todu task update <id> --title "New task title" --format json
+```
+
+**Update description:**
+
+```bash
+todu task update <id> --description "New description" --format json
+```
+
+**Update due date:**
+
+```bash
+todu task update <id> --due 2025-12-31 --format json
+todu task update <id> --due "" --format json  # remove due date
+```
+
+**Combine multiple updates:**
+
+```bash
+todu task update <id> --status active --priority high --add-label bug \
+  --add-assignee alice --format json
+```
+
+## Output Format
+
+Both `todu task update` and `todu task close` output success messages:
+
+- `todu task close 39` → "Task #39 closed successfully"
+- `todu task update 39 --priority high` → "Task #39 updated successfully"
+
+Always use `--format json` flag for consistent parsing, even though the output
+is currently text-based.
 
 ## Allowed Values
 
-### Status
+### Status Values
 
-- `todo` - Not started
-- `inprogress` - Currently working on it
+- `active` - Task is active/in progress
 - `waiting` - Blocked/waiting on external factors
-- `done` - Completed
+- `done` - Completed (prefer using `todu task close` instead)
 - `canceled` - Abandoned/cancelled
 
-### Priority
+### Priority Values
 
 - `low` - Low priority
 - `medium` - Normal priority
 - `high` - High priority
-- `urgent` - Critical/urgent
 
-### Common Labels (GitHub/Forgejo)
+### Label Values
+
+Any string value. Common conventions:
 
 - `bug`, `enhancement`, `documentation`
-- `status:todo`, `status:inprogress`, `status:waiting`, `status:done`
-- `priority:low`, `priority:medium`, `priority:high`
+- `priority:high`, `priority:medium`, `priority:low`
+- `status:active`, `status:waiting`, `status:done`
+
+### Assignee Values
+
+Any username string. No validation at CLI level.
+
+### Due Date Format
+
+Must be in YYYY-MM-DD format or empty string to clear.
+
+## Natural Language Parsing Guide
+
+When parsing user requests:
+
+1. **Extract Task ID**
+   - Look for numbers: "task 39", "issue 20", "#15"
+   - Task ID is required - if not found, ask user
+
+2. **Detect Action**
+   - "close", "complete", "mark as done" → use `todu task close`
+   - Everything else → use `todu task update`
+
+3. **Extract Updates**
+   - Status: "set to active", "mark as waiting", "change to canceled"
+   - Priority: "priority high", "make it low priority", "set priority medium"
+   - Labels: "add label X", "remove label Y", "labels X and Y"
+   - Assignees: "assign to X", "assigned to X and Y", "unassign X"
+   - Title: "rename to X", "change title to X"
+   - Description: "update description to X", "set description to X"
+   - Due: "due 2025-12-31", "set due date to X"
+
+4. **Handle Multiple Updates**
+   - Combine all flags in a single command
+   - Example: "--status active --priority high --add-label bug"
 
 ## Error Handling
 
-- **Task not found**: "Task '{identifier}' not found"
-- **Ambiguous matches**: Prompt user to select
-- **Invalid value**: "'{value}' is not valid for {field}. Allowed: ..."
-- **Unsupported operation**: "System '{system}' doesn't support {operation}"
-- **Authentication errors**: Show token setup instructions
-- **Network errors**: Suggest retry
+- **Task ID missing**: "Please specify a task ID"
+- **Task not found**: "Task #X not found"
+- **Invalid status**: "Invalid status. Use: active, waiting, done, or canceled"
+- **Invalid priority**: "Invalid priority. Use: low, medium, or high"
+- **Invalid date format**: "Due date must be in YYYY-MM-DD format"
+- **CLI errors**: Display the error message from the CLI
 
 ## Success Criteria
 
-- ✅ "mark issue 20 as done" works
-- ✅ "set priority high on issue 5" works
-- ✅ "close the auth bug" searches and updates
-- ✅ "start working on task 12" sets status to inprogress
-- ✅ Validation works (rejects invalid values)
-- ✅ All three systems work
+- ✅ "mark task 39 as done" → closes task
+- ✅ "set priority high on task 5" → updates priority
+- ✅ "add label bug to task 20" → adds label
+- ✅ "assign to alice" → adds assignee
+- ✅ "set task 12 to waiting with high priority" → multiple updates
 - ✅ Natural language parsing works
+- ✅ All update types supported
+
+## Notes
+
+- Always use `--format json` flag for consistency
+- `todu task close` is a shortcut for setting status to "done"
+- Multiple labels and assignees can be added/removed in one command
+- Labels and assignees use `--add-X` and `--remove-X` flags
+- Title and description are direct replacements (not append)
+- Empty string for due date removes the due date
+- Task ID must be provided (no description search)
