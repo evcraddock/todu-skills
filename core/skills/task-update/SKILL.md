@@ -1,6 +1,6 @@
 ---
 name: core-task-update
-description: MANDATORY skill for updating tasks/issues. NEVER call update scripts directly - ALWAYS use this skill via the Skill tool. Use when user wants to update, modify, mark, set, or change a task/issue. NO EXCEPTIONS WHATSOEVER.
+description: MANDATORY skill for updating tasks/issues. NEVER call update scripts directly - ALWAYS use this skill via the Skill tool. Use when user says "update task #*", "mark task #* as *", "close task #*", "set priority on #*", "change status of #*", "mark #* done", "complete task #*", "set #* to *", or similar queries to modify a task. NO EXCEPTIONS WHATSOEVER. (plugin:core@todu)
 ---
 
 # Update Task/Issue (Unified)

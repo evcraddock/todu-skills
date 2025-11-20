@@ -1,6 +1,6 @@
 ---
 name: core-task-view
-description: MANDATORY skill for viewing task/issue details with comments. NEVER call view scripts directly - ALWAYS use this skill via the Skill tool. Use when user wants to view, show, or display details of a task/issue.
+description: MANDATORY skill for viewing task/issue details with comments. NEVER call view scripts directly - ALWAYS use this skill via the Skill tool. Use when user says "show task #*", "view task #*", "show #*", "view #*", "show me task *", "view issue *", "details of task *", or similar queries to view a specific task. (plugin:core@todu)
 ---
 
 # View Task/Issue Details (Unified)

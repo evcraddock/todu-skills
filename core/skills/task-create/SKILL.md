@@ -1,6 +1,6 @@
 ---
 name: core-task-create
-description: MANDATORY skill for creating tasks/issues in any system. NEVER call create scripts directly - ALWAYS use this skill via the Skill tool. Use when user wants to create an issue or task.
+description: MANDATORY skill for creating tasks/issues in any system. NEVER call create scripts directly - ALWAYS use this skill via the Skill tool. Use when user says "create a task", "create an issue", "add a task", "add an issue", "new task", "create task for *", "add task to *", or similar queries to create a new task. (plugin:core@todu)
 ---
 
 # Create Task/Issue (Unified)

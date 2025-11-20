@@ -1,6 +1,6 @@
 ---
 name: project-list
-description: MANDATORY skill for listing registered projects. Use when user wants to list, show, or view registered projects. (plugin:core@todu)
+description: MANDATORY skill for listing registered projects. Use when user says "list projects", "show projects", "list my projects", "show all projects", "what projects", "view projects", or similar queries to list registered projects. (plugin:core@todu)
 ---
 
 # List Registered Projects

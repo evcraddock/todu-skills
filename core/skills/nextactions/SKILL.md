@@ -1,6 +1,6 @@
 ---
 name: nextactions
-description: Show next actions by listing high priority active tasks. Use when user asks for "next action" or "next actions". (plugin:core@todu)
+description: Use when user says "next action", "next actions", "what's next", "what should I work on next", "what do I need to do next", "next actions for *", or similar queries about what to work on. (plugin:core@todu)
 ---
 
 # Next Actions

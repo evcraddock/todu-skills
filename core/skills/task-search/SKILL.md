@@ -1,6 +1,6 @@
 ---
 name: task-search
-description: skill for listing or searching tasks and issues across all registered projects. Use when user wants to find, list, or search tasks/issues. (plugin:core@todu)
+description: Use when user says "list * tasks", "show * tasks", "find * tasks", "search * tasks", "* priority tasks", "tasks in *", "* bugs", "tasks assigned to *", or similar task listing/searching queries. (plugin:core@todu)
 ---
 
 # Search Tasks and Issues

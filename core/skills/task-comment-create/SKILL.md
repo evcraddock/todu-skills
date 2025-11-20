@@ -1,6 +1,6 @@
 ---
 name: core-task-comment-create
-description: MANDATORY skill for adding comments to tasks/issues. NEVER call comment scripts directly - ALWAYS use this skill via the Skill tool. Use when user wants to add a comment to a task/issue.
+description: MANDATORY skill for adding comments to tasks/issues. NEVER call comment scripts directly - ALWAYS use this skill via the Skill tool. Use when user says "add comment to task #*", "comment on #*", "add comment on task *", "add a comment to #*", "add note to task *", or similar queries to add a comment. (plugin:core@todu)
 ---
 
 # Add Comment to Task/Issue

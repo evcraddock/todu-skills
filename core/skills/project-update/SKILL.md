@@ -1,6 +1,6 @@
 ---
 name: project-update
-description: MANDATORY skill for updating registered projects. NEVER call scripts/update-project.py directly - ALWAYS use this skill via the Skill tool. Use when user wants to update, modify, or change a project. (plugin:core@todu)
+description: MANDATORY skill for updating registered projects. NEVER call scripts/update-project.py directly - ALWAYS use this skill via the Skill tool. Use when user says "update project *", "modify project *", "change project *", "update * project", "rename project *", or similar queries to update a project. (plugin:core@todu)
 ---
 
 # Update Registered Project

@@ -1,6 +1,6 @@
 ---
 name: core-project-register
-description: MANDATORY skill for registering projects with nickname conflict resolution. NEVER call 'todu project add' directly - ALWAYS use this skill via the Skill tool. Use when you need to register a project (GitHub repo, Forgejo repo, or local project). (plugin:core@todu)
+description: MANDATORY skill for registering projects with nickname conflict resolution. NEVER call 'todu project add' directly - ALWAYS use this skill via the Skill tool. Use when user says "register project", "add project", "register *", "add * project", "register repo *", or similar queries to register a new project. (plugin:core@todu)
 ---
 
 # Register Project
