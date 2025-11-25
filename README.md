@@ -1,10 +1,13 @@
 # Todu - Task Management for Claude Code
 
-A collection of Claude Code plugins for unified task management across GitHub, Forgejo, and Todoist.
+A collection of Claude Code plugins for unified task management across GitHub,
+Forgejo, and Todoist.
 
 ## Overview
 
-Todu provides seamless task management integration for Claude Code through autonomous skills that Claude invokes based on context. Each plugin normalizes task data to a common format and caches it locally for fast, offline access.
+Todu provides seamless task management integration for Claude Code through
+autonomous skills that Claude invokes based on context. Each plugin normalizes
+task data to a common format and caches it locally for fast, offline access.
 
 ## Installation
 
@@ -33,7 +36,8 @@ Install one or more plugins based on your needs:
 
 ### GitHub Plugin
 
-Manage GitHub issues with rich git context including branches, commits, and file changes.
+Manage GitHub issues with rich git context including branches, commits, and
+file changes.
 
 - Create issues with automatic context extraction
 - View issues with full details and comments
@@ -100,7 +104,8 @@ Create a token at: <https://todoist.com/app/settings/integrations/developer>
 
 ## Usage
 
-All plugins provide autonomous skills that Claude invokes automatically based on context. No slash commands to remember!
+All plugins provide autonomous skills that Claude invokes automatically based
+on context. No slash commands to remember!
 
 ### Creating Tasks
 

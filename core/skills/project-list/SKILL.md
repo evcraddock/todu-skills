@@ -1,21 +1,29 @@
 ---
 name: project-list
-description: MANDATORY skill for listing registered projects. Use when user says "list projects", "show projects", "list my projects", "show all projects", "what projects", "view projects", or similar queries to list registered projects. (plugin:core@todu)
+description: >-
+  MANDATORY skill for listing registered projects. Use when user says
+  "list projects", "show projects", "list my projects", "show all projects",
+  "what projects", "view projects", or similar queries to list registered
+  projects. (plugin:core@todu)
 ---
 
 # List Registered Projects
 
-**⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY list projects request.**
+**⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY list
+projects request.**
 
-**NEVER EVER call `todu project list` directly. This skill provides essential logic beyond just running the CLI:**
+**NEVER EVER call `todu project list` directly. This skill provides essential
+logic beyond just running the CLI:**
 
-- Parsing user intent to determine if they want all projects or filtered by system
+- Parsing user intent to determine if they want all projects or filtered by
+  system
 - Fetching system information to map system IDs to names
 - Formatting results in user-friendly display
 - Handling empty project registry gracefully
 - Providing guidance on how to register projects
 
-Even if you've invoked this skill before in the conversation, you MUST invoke it again for each new list request.
+Even if you've invoked this skill before in the conversation, you MUST invoke
+it again for each new list request.
 
 ---
 
@@ -41,7 +49,8 @@ This skill lists all registered projects using the `todu` CLI.
    - Build lookup table: system_id → identifier (e.g., 1 → "github")
 
 3. **Load Projects**
-   - Call `todu project list --format json` with optional `--system <name>` filter
+   - Call `todu project list --format json` with optional `--system <name>`
+     filter
    - Parse JSON response containing project details
 
 4. **Display Results**
@@ -61,7 +70,7 @@ This skill lists all registered projects using the `todu` CLI.
 - Calls: `todu project list --format json`
 - Displays:
 
-  ```
+  ```text
   # Registered Projects (3)
 
   ## GITHUB
@@ -163,13 +172,14 @@ Natural language queries the skill should understand:
 If no projects are registered (empty JSON array):
 
 - Inform user that no projects are registered
-- Provide guidance on how to register a project using the `project-register` skill
+- Provide guidance on how to register a project using the `project-register`
+  skill
 
 ## Display Format
 
 Projects are grouped by system for clarity:
 
-```
+```text
 # Registered Projects (5)
 
 ## GITHUB (2 projects)
@@ -198,9 +208,12 @@ Projects are grouped by system for clarity:
 
 ## Implementation Details
 
-1. **Fetch systems**: Call `todu system list --format json` to build system_id → identifier map
-2. **Fetch projects**: Call `todu project list --format json` (optionally with `--system <name>`)
-3. **Group by system**: Use `system_id` to look up system `identifier`, group projects
+1. **Fetch systems**: Call `todu system list --format json` to build
+   system_id → identifier map
+2. **Fetch projects**: Call `todu project list --format json` (optionally
+   with `--system <name>`)
+3. **Group by system**: Use `system_id` to look up system `identifier`, group
+   projects
 4. **Format output**: Display grouped projects in markdown with counts
 5. **Handle empty**: If projects array is empty, show helpful message
 

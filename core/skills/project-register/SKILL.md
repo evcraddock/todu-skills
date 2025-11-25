@@ -1,13 +1,20 @@
 ---
 name: core-project-register
-description: MANDATORY skill for registering projects with nickname conflict resolution. NEVER call 'todu project add' directly - ALWAYS use this skill via the Skill tool. Use when user says "register project", "add project", "register *", "add * project", "register repo *", or similar queries to register a new project. (plugin:core@todu)
+description: >-
+  MANDATORY skill for registering projects with nickname conflict resolution.
+  NEVER call 'todu project add' directly - ALWAYS use this skill via the
+  Skill tool. Use when user says "register project", "add project",
+  "register *", "add * project", "register repo *", or similar queries to
+  register a new project. (plugin:core@todu)
 ---
 
 # Register Project
 
-**⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY project registration.**
+**⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY project
+registration.**
 
-**NEVER EVER call `todu project add` directly. This skill provides essential logic beyond just running the CLI command:**
+**NEVER EVER call `todu project add` directly. This skill provides essential
+logic beyond just running the CLI command:**
 
 - Checking if project is already registered (avoiding duplicates)
 - Generating smart nickname suggestions from repo/project names
@@ -15,11 +22,13 @@ description: MANDATORY skill for registering projects with nickname conflict res
 - Providing clear feedback about registration status
 - Proper error handling and JSON parsing
 
-Even if you've invoked this skill before in the conversation, you MUST invoke it again for each new registration request.
+Even if you've invoked this skill before in the conversation, you MUST invoke
+it again for each new registration request.
 
 ---
 
-This skill registers a project (GitHub repo, Forgejo repo, or local project) in the project registry with intelligent nickname handling and conflict resolution.
+This skill registers a project (GitHub repo, Forgejo repo, or local project) in
+the project registry with intelligent nickname handling and conflict resolution.
 
 ## When to Use
 
@@ -33,12 +42,14 @@ This skill registers a project (GitHub repo, Forgejo repo, or local project) in 
 
 1. **Check if Already Registered**
    - Run `todu project list --format json` to get all registered projects
-   - Search for matching `external_id` (repo for GitHub/Forgejo) or matching `name` (for local projects)
+   - Search for matching `external_id` (repo for GitHub/Forgejo) or matching
+     `name` (for local projects)
    - If already registered, return the project name and success immediately
    - If not registered, proceed to step 2
 
 2. **Generate Nickname Suggestion**
-   - For GitHub/Forgejo repos: Extract repo name from owner/repo format (e.g., "evcraddock/todu" → "todu")
+   - For GitHub/Forgejo repos: Extract repo name from owner/repo format
+     (e.g., "evcraddock/todu" → "todu")
    - For local projects: Use provided project name or generate from context
    - Normalize to lowercase, replace spaces with hyphens
 
@@ -50,7 +61,8 @@ This skill registers a project (GitHub repo, Forgejo repo, or local project) in 
 
 4. **Resolve Nickname Conflict (if needed)**
    - Use AskUserQuestion to present options:
-     - Option 1: Suggested nickname with number appended (e.g., "todu2", "todu3")
+     - Option 1: Suggested nickname with number appended (e.g., "todu2",
+       "todu3")
      - Option 2: Suggested nickname with different variation
      - Option 3: User can select "Other" to provide custom nickname
    - Get user's choice
@@ -62,7 +74,8 @@ This skill registers a project (GitHub repo, Forgejo repo, or local project) in 
    - Run `todu project add` with:
      - `--name <chosen-nickname>` (this is the project name/nickname)
      - `--system <github|forgejo>` (optional - defaults to local if omitted)
-     - `--external-id <owner/repo>` (for GitHub/Forgejo, auto-generated for local)
+     - `--external-id <owner/repo>` (for GitHub/Forgejo, auto-generated for
+       local)
      - `--format json` (for structured output)
    - Parse the output to confirm success
    - Return success with registration details
@@ -76,7 +89,8 @@ This skill registers a project (GitHub repo, Forgejo repo, or local project) in 
 - Checks if evcraddock/rott is registered → Not found
 - Suggests nickname: "rott"
 - Checks for conflicts → No conflict
-- Runs: `todu project add --name rott --system github --external-id evcraddock/rott --format json`
+- Runs: `todu project add --name rott --system github
+  --external-id evcraddock/rott --format json`
 - Returns: "✅ Registered project 'rott' (evcraddock/rott)"
 
 **User**: (via sync skill) "Sync evcraddock/todu"
@@ -95,7 +109,7 @@ This skill registers a project (GitHub repo, Forgejo repo, or local project) in 
 - Checks for conflicts → "repo-name" already exists!
 - Uses AskUserQuestion:
 
-  ```
+  ```text
   Question: "The nickname 'repo-name' is already in use. Choose a nickname:"
   Options:
     - "repo-name2" (suggested alternative)
@@ -104,7 +118,8 @@ This skill registers a project (GitHub repo, Forgejo repo, or local project) in 
   ```
 
 - User selects: "repo-name2"
-- Runs: `todu project add --name repo-name2 --system github --external-id owner/repo-name --format json`
+- Runs: `todu project add --name repo-name2 --system github
+  --external-id owner/repo-name --format json`
 - Returns: "✅ Registered project 'repo-name2' (owner/repo-name)"
 
 ## CLI Interface
@@ -157,11 +172,13 @@ todu project add \
   --format json
 ```
 
-**Note**: The `--format json` flag may not currently output JSON for the `add` command. Parse the text output or use `todu project show <id> --format json` to verify registration.
+**Note**: The `--format json` flag may not currently output JSON for the `add`
+command. Parse the text output or use `todu project show <id> --format json` to
+verify registration.
 
 Output on success (text format):
 
-```
+```text
 Created project 2: rott
   System: 1
   External ID: evcraddock/rott
@@ -183,7 +200,8 @@ When a nickname conflict is detected:
 ```python
 AskUserQuestion(
     questions=[{
-        "question": f"The nickname '{suggested}' is already in use for another project. Choose a nickname for {repo_or_project}:",
+        "question": f"The nickname '{suggested}' is already in use for "
+                    f"another project. Choose a nickname for {repo_or_project}:",
         "header": "Nickname",
         "multiSelect": false,
         "options": [
@@ -216,11 +234,13 @@ This skill is called by:
 
 ## Notes
 
-- Already-registered projects return success immediately (no duplicate registration)
+- Already-registered projects return success immediately (no duplicate
+  registration)
 - Nickname suggestions are smart: derived from repo/project name
 - Conflict resolution is user-driven via AskUserQuestion
 - All registration uses the `todu project add` CLI command
 - Project names (nicknames) must be unique across all systems
-- Use `todu project list --format json` to check for existing projects and conflicts
+- Use `todu project list --format json` to check for existing projects and
+  conflicts
 - Error handling: Check CLI exit codes and parse output for error messages
 - The CLI stores projects in the todu database (configured via config.yaml)

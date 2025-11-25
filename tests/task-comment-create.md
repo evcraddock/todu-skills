@@ -4,7 +4,7 @@
 
 User request:
 
-```
+```text
 Comment on task 48 saying "This is a test comment"
 ```
 
@@ -18,7 +18,7 @@ Expected behavior:
 
 User request:
 
-```
+```text
 Add a comment to task 49
 ```
 
@@ -33,7 +33,7 @@ Expected behavior:
 
 User request:
 
-```
+```text
 Comment on task 48: This is a multi-line comment with:
 - Bullet points
 - **Bold text**
@@ -50,7 +50,7 @@ Expected behavior:
 
 User request:
 
-```
+```text
 Comment on task 99999 saying "This should fail"
 ```
 

@@ -1,6 +1,6 @@
 ---
 name: project-delete
-description: MANDATORY skill for deleting registered projects. NEVER call scripts/delete-project.py directly - ALWAYS use this skill via the Skill tool. Use when user says "delete project *", "remove project *", "unregister project *", "delete * project", "remove *", or similar queries to delete a project. (plugin:core@todu)
+description: MANDATORY skill for deleting registered projects. NEVER call `todu project remove` directly - ALWAYS use this skill via the Skill tool. Use when user says "delete project *", "remove project *", "unregister project *", "delete * project", "remove *", or similar queries to delete a project. (plugin:core@todu)
 ---
 
 # Delete Registered Project
