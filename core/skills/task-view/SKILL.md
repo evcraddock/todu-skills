@@ -143,57 +143,25 @@ Which task would you like to view? (1-3)
 
 1. User selects, then displays that task
 
-## Implementation Pseudocode
+## CLI Interface
 
-```python
-import sys
-from pathlib import Path
+View task details using the `todu` CLI:
 
-sys.path.append(str(Path(__file__).parent.parent.parent / 'scripts'))
-from resolve_task import resolve_task, AmbiguousTaskError
-from plugin_registry import get_registry
+```bash
+# View task by ID
+todu task show <task-id>
 
-def view_task():
-    # 1. Get identifier from user message
-    identifier = extract_from_user_message()  # "20", "github #15", "auth bug"
-
-    # 2. Resolve to system + task_data
-    try:
-        task = resolve_task(identifier)
-    except AmbiguousTaskError as e:
-        # Prompt user to select from matches
-        task = prompt_user_to_select(e.matches)
-
-    # 3. Get plugin and build args from interface spec
-    registry = get_registry()
-    script_path = registry.get_script_path(task['system'], 'view')
-    args = registry.build_args(task['system'], 'view', task_data=task)
-
-    # 4. Call view script (system-agnostic)
-    result = subprocess.run([str(script_path)] + args, ...)
-
-    # 5. Display formatted output
-    display_task_details(result.stdout)
+# View with JSON output
+todu task show <task-id> --format json
 ```
 
-## Script Interface
+**Example:**
 
-All view scripts are called via the plugin registry's interface system. The
-skill uses `registry.build_args(system, 'view', task_data=task)` which
-automatically builds the correct arguments based on the system's interface
-specification in `todu.json`.
-
-**Example (no hardcoded system checks needed):**
-
-```python
-# Works for ANY system (github, forgejo, todoist, future systems)
-registry = get_registry()
-script_path = registry.get_script_path(task['system'], 'view')
-args = registry.build_args(task['system'], 'view', task_data=task)
-result = subprocess.run([str(script_path)] + args, ...)
+```bash
+todu task show 221
 ```
 
-**Output** (JSON to stdout - same format for all systems):
+**Output** (JSON format with `--format json`):
 
 ```json
 {
