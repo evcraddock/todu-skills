@@ -148,16 +148,18 @@ Parse these patterns from user queries:
 
 Display results as a single markdown table sorted by due date:
 
-| ID  | Title                    | Status | Priority | Project     | Due Date   |
-|-----|--------------------------|--------|----------|-------------|------------|
-| 159 | Benefits Enrollment      | active | high     | ntrs        | 2025-12-02 |
-| 218 | Convert weekly-review... | active | high     | todu-skills | -          |
-| 45  | Review PR                | active | low      | Inbox       | -          |
+| ID  | Title                    | Project     | Due Date   |
+|-----|--------------------------|-------------|------------|
+| 159 | Benefits Enrollment      | ntrs        | 2025-12-02 |
+| 218 | Convert weekly-review... | todu-skills | -          |
+| 45  | Review PR                | Inbox       | -          |
 
 - Tasks with due dates appear first, sorted earliest to latest
 - Tasks without due dates appear last
 - No section headers - just one unified table
 - If no tasks found, display "No next actions found"
+- Status and Priority columns are omitted (status is always "active", priority
+  is implicit from the query logic)
 
 ## Notes
 
