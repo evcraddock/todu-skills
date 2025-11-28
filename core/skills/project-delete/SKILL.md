@@ -1,6 +1,7 @@
 ---
 name: project-delete
 description: MANDATORY skill for deleting registered projects. NEVER call `todu project remove` directly - ALWAYS use this skill via the Skill tool. Use when user says "delete project *", "remove project *", "unregister project *", "delete * project", "remove *", or similar queries to delete a project. (plugin:core@todu)
+allowed-tools: todu
 ---
 
 # Delete Registered Project
@@ -11,8 +12,8 @@ project request.**
 **NEVER EVER call `todu project remove` directly. This skill provides essential
 logic beyond just running the CLI:**
 
-- Confirming deletion with the user using AskUserQuestion
-- Displaying project details before deletion
+- Showing task count before deletion
+- Single confirmation with cascade option
 - Handling errors gracefully
 - Providing clear feedback about the deletion
 
@@ -44,33 +45,32 @@ This skill deletes a registered project from the todu database using the
    - Extract the project `id` (needed for remove command)
    - Display project details to user
 
-3. **Ask About Task Handling**
-   - Use AskUserQuestion to ask if user wants to delete associated tasks
-   - Options: "Delete project and tasks (--cascade)" or "Delete project only"
-   - This determines whether to use the --cascade flag
+3. **Count Associated Tasks**
+   - Run `todu task list --project <name> --format json` to count tasks
+   - Display task count to user (e.g., "This project has 5 associated tasks")
 
-4. **Confirm Deletion**
-   - Use AskUserQuestion to confirm deletion
-   - Show project details: name, description, status, system
-   - Show whether tasks will be deleted (based on cascade choice)
-   - Ask: "Are you sure you want to delete this project?"
-   - Options: "Yes, delete" or "No, cancel"
+4. **Confirm Deletion (Single Step)**
+   - If project has NO tasks: simple yes/no confirmation
+   - If project HAS tasks: ask about cascade in same confirmation
+   - Use AskUserQuestion with appropriate options based on task count
 
 5. **Delete Project**
    - If confirmed, call `todu project remove <id>` with appropriate flags
    - Use `--cascade` if user chose to delete tasks
    - Use `--force` to skip CLI's built-in confirmation (we already confirmed)
-   - Parse output to confirm success
    - Display success message with deleted project details
    - If cancelled, inform user no changes were made
 
 ## Example Interactions
+
+### Example 1: Project with tasks
 
 **User**: "Delete the todu-tests project"
 **Skill**:
 
 - Runs `todu project list --format json` to find 'todu-tests'
 - Finds project with id=22, name="todu-tests"
+- Runs `todu task list --project todu-tests --format json` → 5 tasks found
 - Shows project details:
 
   ```text
@@ -78,27 +78,54 @@ This skill deletes a registered project from the todu database using the
   - Name: todu-tests
   - Description: Test project for development
   - Status: active
-  - System: local
-  - External ID: 9a2e6561-dbf8-4ff1-bc6d-69f47a43947f
+  - Associated tasks: 5
   ```
 
-- Asks about task handling:
-  - Question: "What should happen to tasks associated with this project?"
-  - Options: "Delete project and tasks (--cascade)" / "Delete project only"
-- User selects: "Delete project and tasks (--cascade)"
-- Confirms deletion:
-  - Question: "Are you sure you want to delete 'todu-tests'? This will also
-    delete all associated tasks."
-  - Options: "Yes, delete" / "No, cancel"
-- If "Yes": Calls `todu project remove 22 --cascade --force --format json`
-- Shows: "✅ Project 'todu-tests' has been deleted successfully."
+- Single confirmation with cascade options:
+  - Question: "Delete project 'todu-tests'? (5 associated tasks)"
+  - Options:
+    - "Delete project only" - Keep associated tasks (they become orphaned)
+    - "Delete with tasks" - Remove project and all 5 tasks (--cascade)
+    - "Cancel" - Keep the project
+- User selects: "Delete with tasks"
+- Calls `todu project remove 22 --cascade --force`
+- Shows: "Project 'todu-tests' (ID: 22) deleted successfully with 5 tasks."
 
-**User**: "Remove the test project"
+### Example 2: Project with no tasks
+
+**User**: "Remove the empty-project"
+**Skill**:
+
+- Runs `todu project list --format json` to find 'empty-project'
+- Finds project with id=15, name="empty-project"
+- Runs `todu task list --project empty-project --format json` → 0 tasks
+- Shows project details:
+
+  ```text
+  Project to delete:
+  - Name: empty-project
+  - Description: An empty test project
+  - Status: active
+  - Associated tasks: 0
+  ```
+
+- Simple confirmation (no cascade needed):
+  - Question: "Delete project 'empty-project'?"
+  - Options:
+    - "Yes, delete" - Permanently remove this project
+    - "Cancel" - Keep the project
+- User selects: "Yes, delete"
+- Calls `todu project remove 15 --force`
+- Shows: "Project 'empty-project' (ID: 15) deleted successfully."
+
+### Example 3: Project not found
+
+**User**: "Delete the test project"
 **Skill**:
 
 - Runs `todu project list --format json` to find 'test'
-- If not found: "Project 'test' not found. Available projects: [list]"
-- If found: Asks about tasks and confirms deletion as above
+- Not found: "Project 'test' not found. Available projects: todu-skills,
+  todu-tests, my-project"
 
 ## CLI Interface
 
@@ -110,14 +137,22 @@ todu project list --format json
 
 Returns array of projects with id, name, description, etc.
 
+**Count associated tasks:**
+
+```bash
+todu task list --project <name> --format json
+```
+
+Returns array of tasks - count the results to show task count.
+
 **Remove project** (requires project ID from list command):
 
 ```bash
-# Delete project only (keep tasks)
-todu project remove <id> --force --format json
+# Delete project only (keep tasks - they become orphaned)
+todu project remove <id> --force
 
 # Delete project and all associated tasks
-todu project remove <id> --cascade --force --format json
+todu project remove <id> --cascade --force
 ```
 
 **Flags:**
@@ -125,87 +160,56 @@ todu project remove <id> --cascade --force --format json
 - `--cascade`: Delete all tasks associated with this project
 - `--force`: Skip the CLI's built-in confirmation prompt (we handle
   confirmation ourselves)
-- `--format json`: Output in JSON format for parsing
 
 **Example:**
 
 ```bash
 # Delete project with ID 22 and all its tasks
-todu project remove 22 --cascade --force --format json
+todu project remove 22 --cascade --force
 ```
 
-**Output format**: The CLI outputs confirmation text. Parse output to verify
-success.
+**Success output:**
+
+```text
+Project 'todu-tests' (ID: 22) deleted successfully.
+```
+
+## Confirmation Flow
+
+**CRITICAL**: Use a SINGLE AskUserQuestion call. The options vary based on
+task count:
+
+### If project has tasks (count > 0)
+
+Use AskUserQuestion with question "Delete project '{name}'? ({count} associated
+tasks)" and header "Delete" with these options:
+
+- **Delete project only**: Keep associated tasks (WARNING: tasks become
+  orphaned with no project association - this is rarely useful)
+- **Delete with tasks**: Remove project and all {count} tasks (--cascade)
+- **Cancel**: Keep the project
+
+### If project has no tasks (count = 0)
+
+Use AskUserQuestion with question "Delete project '{name}'?" and header
+"Delete" with these options:
+
+- **Yes, delete**: Permanently remove this project
+- **Cancel**: Keep the project
+
+Only proceed with deletion if user selects a delete option (not "Cancel").
 
 ## Task Deletion Behavior
 
 The `--cascade` flag controls what happens to tasks associated with the project:
 
 - **Without --cascade**: Only the project is deleted. Associated tasks remain
-  in the database but become orphaned (no project association).
+  in the database but become orphaned (no project association). **WARNING**:
+  Orphaned tasks are difficult to find and manage. This option is rarely
+  useful - consider warning the user if they choose this.
 
 - **With --cascade**: Both the project and all its associated tasks are deleted
-  from the database.
-
-**Important**: Always ask the user which behavior they want using
-AskUserQuestion before deleting.
-
-## Confirmation Flow
-
-**CRITICAL**: Use AskUserQuestion twice - first for task handling, then for
-final confirmation:
-
-### Step 1: Ask about task handling
-
-```python
-AskUserQuestion(
-    questions=[{
-        "question": f"What should happen to tasks associated with '{name}'?",
-        "header": "Task Handling",
-        "multiSelect": false,
-        "options": [
-            {
-                "label": "Delete project and tasks",
-                "description": "Remove project and all associated tasks (--cascade)"
-            },
-            {
-                "label": "Delete project only",
-                "description": "Keep tasks, only remove project"
-            }
-        ]
-    }]
-)
-```
-
-### Step 2: Final confirmation
-
-```python
-# Adjust message based on cascade choice
-if cascade:
-    task_msg = "This will also delete all associated tasks."
-else:
-    task_msg = "Associated tasks will be kept."
-
-AskUserQuestion(
-    questions=[{
-        "question": f"Are you sure you want to delete the '{name}' project? {task_msg}",
-        "header": "Confirm Delete",
-        "multiSelect": false,
-        "options": [
-            {
-                "label": "Yes, delete",
-                "description": "Permanently remove this project"
-            },
-            {
-                "label": "No, cancel",
-                "description": "Keep the project"
-            }
-        ]
-    }]
-)
-```
-
-Only proceed with deletion if user selects "Yes, delete".
+  from the database. This is usually the preferred option when tasks exist.
 
 ## Search Patterns
 
@@ -232,6 +236,6 @@ Natural language queries the skill should understand:
   confirmation ourselves with AskUserQuestion)
 - The `--cascade` flag determines whether associated tasks are also deleted
 - Does not affect the actual repository/project, only the database
-- Two-step confirmation: task handling choice + final confirmation
-- User can cancel at any point (task handling or final confirmation)
-- Without `--cascade`, tasks become orphaned but remain in the database
+- Single confirmation step that includes cascade choice when tasks exist
+- Skip cascade question entirely when project has no tasks
+- Warn users that "delete project only" leaves orphaned tasks (rarely useful)

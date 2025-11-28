@@ -6,6 +6,7 @@ description: >-
   Skill tool. Use when user says "register project", "add project",
   "register *", "add * project", "register repo *", or similar queries to
   register a new project. (plugin:core@todu)
+allowed-tools: todu
 ---
 
 # Register Project
@@ -73,14 +74,18 @@ the project registry with intelligent nickname handling and conflict resolution.
 5. **Register the Project**
    - Run `todu project add` with:
      - `--name <chosen-nickname>` (this is the project name/nickname)
-     - `--system <github|forgejo>` (optional - defaults to local if omitted)
-     - `--external-id <owner/repo>` (for GitHub/Forgejo, auto-generated for
+     - `--system <system-name>` (from `todu system list`, omit for local)
+     - `--external-id <owner/repo>` (for external systems, auto-generated for
        local)
+     - `--priority <low|medium|high>` (optional, defaults to medium)
+     - `--description <text>` (optional)
      - `--format json` (for structured output)
    - Parse the output to confirm success
    - Return success with registration details
 
 ## Example Interactions
+
+### Example 1: Register GitHub repo
 
 **User**: (via sync skill) "Sync evcraddock/rott"
 **Skill**:
@@ -93,12 +98,16 @@ the project registry with intelligent nickname handling and conflict resolution.
   --external-id evcraddock/rott --format json`
 - Returns: "✅ Registered project 'rott' (evcraddock/rott)"
 
+### Example 2: Already registered
+
 **User**: (via sync skill) "Sync evcraddock/todu"
 **Skill**:
 
 - Runs: `todu project list --format json`
 - Checks if evcraddock/todu is registered → Already registered as "todu"
 - Returns: "✅ Project 'todu' already registered (evcraddock/todu)"
+
+### Example 3: Nickname conflict
 
 **User**: (via sync skill) "Sync owner/repo-name" (nickname conflict exists)
 **Skill**:
@@ -107,20 +116,36 @@ the project registry with intelligent nickname handling and conflict resolution.
 - Checks if owner/repo-name is registered → Not found
 - Suggests nickname: "repo-name"
 - Checks for conflicts → "repo-name" already exists!
-- Uses AskUserQuestion:
-
-  ```text
-  Question: "The nickname 'repo-name' is already in use. Choose a nickname:"
-  Options:
-    - "repo-name2" (suggested alternative)
-    - "repo-name-owner" (variation with owner)
-    - [Other - user can type custom]
-  ```
-
+- Uses AskUserQuestion with question "The nickname 'repo-name' is already in
+  use. Choose a nickname for owner/repo-name:" and header "Nickname" with
+  options:
+  - "repo-name2" - Add number suffix
+  - "repo-name-owner" - Include owner in nickname
+  - (User can also select "Other" to type custom)
 - User selects: "repo-name2"
 - Runs: `todu project add --name repo-name2 --system github
   --external-id owner/repo-name --format json`
 - Returns: "✅ Registered project 'repo-name2' (owner/repo-name)"
+
+### Example 4: Local project
+
+**User**: "Create a local project called shopping-list"
+**Skill**:
+
+- Runs: `todu project list --format json`
+- Checks if "shopping-list" exists → Not found
+- Runs: `todu project add --name shopping-list --format json`
+- Returns: "✅ Registered local project 'shopping-list'"
+
+### Example 5: With priority and description
+
+**User**: "Register project my-app with high priority"
+**Skill**:
+
+- Runs: `todu project list --format json`
+- Checks if "my-app" exists → Not found
+- Runs: `todu project add --name my-app --priority high --format json`
+- Returns: "✅ Registered local project 'my-app' (high priority)"
 
 ## CLI Interface
 
@@ -149,26 +174,32 @@ Returns array of projects:
 ]
 ```
 
+**List available systems** (to know valid --system values):
+
+```bash
+todu system list
+```
+
+Use this to determine valid system names. Do not hardcode system names - always
+query this command to get the current list of available systems.
+
 **Register new project**:
 
 ```bash
-# GitHub
+# External system (GitHub, Forgejo, etc.)
 todu project add \
   --name <nickname> \
-  --system github \
+  --system <system-name> \
   --external-id <owner/repo> \
-  --format json
-
-# Forgejo
-todu project add \
-  --name <nickname> \
-  --system forgejo \
-  --external-id <owner/repo> \
+  --priority <low|medium|high> \
+  --description "Optional description" \
   --format json
 
 # Local (no external sync, system defaults to local)
 todu project add \
   --name <nickname> \
+  --priority <low|medium|high> \
+  --description "Optional description" \
   --format json
 ```
 
@@ -193,32 +224,18 @@ When a nickname conflict is detected:
 1. **Generate Alternatives**:
    - Numbered: "nickname2", "nickname3", etc.
    - With owner: "nickname-owner"
-   - With system: "nickname-gh", "nickname-fg", "nickname-td"
+   - With system: "nickname-gh", "nickname-fg"
 
 2. **Ask User**:
+   - Use AskUserQuestion with question "The nickname '{suggested}' is already
+     in use for another project. Choose a nickname for {repo_or_project}:"
+   - Header: "Nickname"
+   - Options:
+     - "{suggested}2" - Add number suffix
+     - "{suggested}-{owner}" - Include owner/context in nickname
+   - User can also select "Other" to provide custom nickname
 
-```python
-AskUserQuestion(
-    questions=[{
-        "question": f"The nickname '{suggested}' is already in use for "
-                    f"another project. Choose a nickname for {repo_or_project}:",
-        "header": "Nickname",
-        "multiSelect": false,
-        "options": [
-            {
-                "label": f"{suggested}2",
-                "description": "Add number suffix"
-            },
-            {
-                "label": f"{suggested}-{owner}",
-                "description": "Include owner/context in nickname"
-            }
-        ]
-    }]
-)
-```
-
-1. **Validate Choice**:
+3. **Validate Choice**:
    - Check if user's chosen nickname also conflicts
    - If conflicts, ask again with different suggestions
    - Continue until unique nickname is found
@@ -242,5 +259,8 @@ This skill is called by:
 - Project names (nicknames) must be unique across all systems
 - Use `todu project list --format json` to check for existing projects and
   conflicts
+- Use `todu system list` to get available systems - do not hardcode system names
+- Priority defaults to medium if not specified
+- Description is optional
 - Error handling: Check CLI exit codes and parse output for error messages
 - The CLI stores projects in the todu database (configured via config.yaml)

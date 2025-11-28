@@ -6,6 +6,7 @@ description: >-
   user says "show task #*", "view task #*", "show #*", "view #*",
   "show me task *", "view issue *", "details of task *", or similar queries
   to view a specific task. (plugin:core@todu)
+allowed-tools: todu
 ---
 
 # View Task/Issue Details (Unified)
@@ -13,193 +14,234 @@ description: >-
 **⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY view
 request.**
 
-**NEVER EVER call view scripts directly. This skill provides essential unified
-logic:**
+**This skill provides essential logic:**
 
-- Unified ID resolution (e.g., "view issue 20")
-- System-specific ID resolution (e.g., "view github #15")
-- Description search resolution (e.g., "view auth bug")
-- Plugin-based routing to correct view script
-- Fetching fresh data from API (not just cache)
-- Displaying full details with comments
+- Parsing task ID from natural language requests
+- Description search when ID not provided
+- Inferring task from conversation context
 - Handling ambiguous matches with user prompts
+- Displaying full details with comments
 
 ---
 
-This skill displays full details of a task/issue from any system, including
-title, description, status, labels, comments, and more.
+This skill displays full details of a task/issue including title, description,
+status, labels, comments, and more.
 
 ## When to Use
 
 - User wants to view/show/display a task or issue
-- User provides unified ID ("view issue 20")
-- User provides system-specific ID ("view github #15")
+- User provides task ID ("view task 20")
 - User provides description to search ("show auth bug task")
+- User references task from context ("show me that task")
 
 ## What This Skill Does
 
-1. **Resolve Task Identifier**
-   - Parse identifier from user request
-   - Try unified ID lookup first
-   - Try system-specific format (e.g., "github #15")
-   - Try description search if neither works
-   - If multiple matches, prompt user to select
+1. **Parse Task Identifier**
+   - Extract task ID from user request
+   - If no ID, try to infer from conversation context and ask for confirmation
+   - If cannot infer, search by description if keywords provided
+   - If no keywords, ask user for task ID
 
-2. **Get System and Details**
-   - Look up task in ID registry or cache
-   - Determine which system owns this task
-   - Get repo/project identifier
+2. **Handle Ambiguous Matches** (for description search)
+   - If single match: display it
+   - If multiple matches: prompt user to select
+   - If no matches: inform user and suggest alternatives
 
-3. **Fetch Fresh Data**
-   - Use plugin registry to get script path and build arguments
-   - Call view script (system-agnostic via interface spec)
-   - Script fetches fresh data from API (not cache)
-   - Returns full details including comments
-
-4. **Display Results**
-   - Show formatted task details
-   - Include title, status, labels, assignees
+3. **Fetch and Display Task**
+   - Run `todu task show <id>` to get full details
+   - Display formatted task details
+   - Include title, status, priority, labels, assignees
    - Show full description
    - List all comments with authors and timestamps
-   - Display URL for viewing in browser
-
-## Resolution Examples
-
-### By Unified ID
-
-**User**: "view issue 20"
-
-- Looks up ID 20 in registry
-- Finds `github-evcraddock_todu-11.json`
-- Calls view script via registry.build_args()
-
-### By System-Specific ID
-
-**User**: "show github #15"
-
-- Searches cache for github issue #15
-- Finds in evcraddock/rott
-- Calls view script with those details
-
-### By Description
-
-**User**: "view auth bug"
-
-- Searches all cached issues for "auth"
-- If single match: displays it
-- If multiple: prompts user to select
-- If none: "No tasks found matching 'auth bug'"
+   - Display external URL if available
 
 ## Example Interactions
 
-### Example 1: View by Unified ID
+### Example 1: View by task ID
 
-**User**: "View issue 20"
+**User**: "View task 20"
 
 **Skill**:
 
-1. Looks up unified ID 20 → github-evcraddock_todu-11.json
-2. Parses: system=github, repo=evcraddock/todu, number=11
-3. Calls view script via registry
-4. Displays:
+1. Parses: ID=20
+2. Executes: `todu task show 20`
+3. Displays:
 
 ```text
-Issue #11: Fix authentication bug
-Status: open | Priority: high
-Labels: bug, status:todo
-Assigned: @evcraddock
-Created: 2025-10-15 | Updated: 2025-10-20
+Task #20: Fix authentication bug
+============================================================
+
+Status:      active
+Priority:    high
+Project ID:  1
+External ID: 11
+Source URL:  https://github.com/evcraddock/todu/issues/11
+Created:     2025-10-15 10:00:00
+Updated:     2025-10-20 15:30:00
 
 Description:
-Users are experiencing authentication failures when...
+Users are experiencing authentication failures when logging in
+with OAuth providers.
+
+Labels: bug, auth
+
+Assignees: evcraddock
 
 Comments (3):
-  @alice - 2025-10-16: I can reproduce this
-  @bob - 2025-10-17: PR #12 should fix it
-  @evcraddock - 2025-10-20: Merged, testing now
-
-URL: https://github.com/evcraddock/todu/issues/11
-Todu ID: 20
+  alice - 2025-10-16: I can reproduce this
+  bob - 2025-10-17: PR #12 should fix it
+  evcraddock - 2025-10-20: Merged, testing now
 ```
 
-### Example 2: Ambiguous Description
+### Example 2: View by description search
+
+**User**: "Show me the auth bug"
+
+**Skill**:
+
+1. Parses: no ID, keywords="auth bug"
+2. Executes: `todu task list --search "auth bug"`
+3. Finds single match: task #20
+4. Executes: `todu task show 20`
+5. Displays task details
+
+### Example 3: Ambiguous description search
 
 **User**: "Show task about sync"
 
 **Skill**:
 
-1. Searches for "sync" in all tasks
-2. Finds 3 matches
-3. Prompts:
+1. Parses: no ID, keywords="sync"
+2. Executes: `todu task list --search "sync"`
+3. Finds 3 matches
+4. Prompts user with AskUserQuestion:
+   - Question: "Found 3 tasks matching 'sync'. Which one?"
+   - Options:
+     - "#15 - Fix sync timing issue (todu-skills)"
+     - "#22 - Add sync progress bar (todu-skills)"
+     - "#31 - Sync not working (Inbox)"
+5. User selects #15
+6. Executes: `todu task show 15`
+7. Displays task details
 
-```text
-Found 3 tasks matching 'sync':
-  [1] ID 15 - Fix sync timing issue (github)
-  [2] ID 22 - Add sync progress bar (forgejo)
-  [3] ID 31 - Todoist sync not working (todoist)
+### Example 4: Infer from context
 
-Which task would you like to view? (1-3)
-```
+**User**: (after discussing task #42) "Show me that task"
 
-1. User selects, then displays that task
+**Skill**:
+
+1. Parses: no explicit ID
+2. Infers from context: likely task #42
+3. Asks: "Did you mean task #42: Fix authentication bug?"
+4. User confirms: "Yes"
+5. Executes: `todu task show 42`
+6. Displays task details
+
+### Example 5: No task ID or keywords
+
+**User**: "Show me a task"
+
+**Skill**:
+
+1. Parses: no ID, no keywords, no context
+2. Asks: "Which task would you like to view? Please provide the task ID or
+   describe the task."
+3. User provides: "the one about documentation"
+4. Executes: `todu task list --search "documentation"`
+5. Continues with search flow
 
 ## CLI Interface
 
-View task details using the `todu` CLI:
+**View task by ID:**
 
 ```bash
-# View task by ID
 todu task show <task-id>
+```
 
-# View with JSON output
-todu task show <task-id> --format json
+**Search for tasks:**
+
+```bash
+todu task list --search "<keywords>"
+```
+
+**List available systems:**
+
+```bash
+todu system list
 ```
 
 **Example:**
 
 ```bash
-todu task show 221
+todu task show 20
 ```
 
-**Output** (JSON format with `--format json`):
+**Output:**
 
-```json
-{
-  "id": 20,
-  "title": "Fix auth bug",
-  "description": "...",
-  "state": "open",
-  "status": "inprogress",
-  "labels": ["bug"],
-  "assignees": ["@user"],
-  "priority": "high",
-  "dueDate": null,
-  "createdAt": "2025-10-15T10:00:00Z",
-  "updatedAt": "2025-10-20T15:30:00Z",
-  "url": "https://...",
-  "comments": [
-    {
-      "author": "@alice",
-      "body": "I can reproduce this",
-      "createdAt": "2025-10-16T09:00:00Z"
-    }
-  ]
-}
+```text
+Task #20: Fix authentication bug
+============================================================
+
+Status:      active
+Priority:    high
+Project ID:  1
+External ID: 11
+Source URL:  https://github.com/evcraddock/todu/issues/11
+Created:     2025-10-15 10:00:00
+Updated:     2025-10-20 15:30:00
+
+Description:
+Users are experiencing authentication failures when logging in
+with OAuth providers.
+
+Labels: bug, auth
+
+Assignees: evcraddock
+
+Comments (3):
+  alice - 2025-10-16: I can reproduce this
+  bob - 2025-10-17: PR #12 should fix it
+  evcraddock - 2025-10-20: Merged, testing now
 ```
+
+## Natural Language Parsing
+
+| User says                | Parsed action                           |
+|--------------------------|-----------------------------------------|
+| "view task 20"           | `todu task show 20`                     |
+| "show task #42"          | `todu task show 42`                     |
+| "view issue 15"          | `todu task show 15`                     |
+| "show me task 20"        | `todu task show 20`                     |
+| "details of task 30"     | `todu task show 30`                     |
+| "show auth bug"          | Search for "auth bug", then show        |
+| "view the sync task"     | Search for "sync", then show            |
+| "show me that task"      | Infer from context, confirm, then show  |
+
+## Resolution Flow
+
+1. **Extract task ID** from request (numbers after "task", "issue", "#")
+2. **If ID found**: run `todu task show <id>`
+3. **If no ID but keywords**: run `todu task list --search "<keywords>"`
+   - Single match: show it
+   - Multiple matches: ask user to select
+   - No matches: inform user
+4. **If no ID and no keywords**: try to infer from context
+   - If can infer: ask for confirmation
+   - If cannot infer: ask user for task ID or keywords
 
 ## Error Handling
 
-- **Task not found**: "Task '{identifier}' not found. Try syncing first?"
+- **Task not found**: "Task #X not found. Please check the task ID."
+- **No matches for search**: "No tasks found matching 'X'. Try different
+  keywords or provide the task ID directly."
 - **Ambiguous matches**: Prompt user to select from list
-- **Authentication errors**: Show friendly message with token setup
-- **Network errors**: Suggest viewing from cache if available
+- **No task ID provided**: Try to infer from context or ask user
 
-## Success Criteria
+## Notes
 
-- ✅ "view issue 20" works (unified ID)
-- ✅ "show task abc123" works (Todoist)
-- ✅ "view github #32" works (system-specific)
-- ✅ "show auth bug" works (description search)
-- ✅ Fresh data fetched from API
-- ✅ Comments displayed
-- ✅ All three systems work
+- Task ID is the unified todu ID (numeric)
+- Use `todu task list --search` for description-based search
+- Available systems can be found via `todu system list`
+- External URL links to the original issue (GitHub, Forgejo, etc.)
+- Comments are displayed with author and timestamp
+- Try to infer task from conversation context when ID not provided

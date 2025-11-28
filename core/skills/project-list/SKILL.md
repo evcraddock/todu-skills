@@ -1,29 +1,22 @@
 ---
 name: project-list
 description: >-
-  MANDATORY skill for listing registered projects. Use when user says
+  Use when user says
   "list projects", "show projects", "list my projects", "show all projects",
   "what projects", "view projects", or similar queries to list registered
   projects. (plugin:core@todu)
+allowed-tools: todu
 ---
 
 # List Registered Projects
 
-**⚠️ MANDATORY: ALWAYS invoke this skill via the Skill tool for EVERY list
-projects request.**
-
-- Parsing user intent to determine if they want all projects or filtered by
-  system
-- Displaying CLI output directly to user
-- Handling empty project registry gracefully
-- Providing guidance on how to register projects
+This skill lists registered projects using the `todu` CLI and displays the
+output directly to the user.
 
 Even if you've invoked this skill before in the conversation, you MUST invoke
 it again for each new list request.
 
 ---
-
-This skill lists all registered projects using the `todu` CLI.
 
 ## When to Use
 
@@ -35,9 +28,11 @@ This skill lists all registered projects using the `todu` CLI.
 ## What This Skill Does
 
 1. **Determine Filter Context**
-   - If user mentions a specific system name - filter by that system
-   - If user asks for "all" projects - show all regardless of priority
-   - Otherwise - use default filters (high/medium priority)
+   - Default: show all active projects (no priority filter)
+   - If user mentions a specific system name: filter by that system
+   - If user mentions a specific priority: filter by that priority
+   - If user asks for "done" or "completed" projects: filter by done status
+   - If user asks for "all" projects: show all regardless of status
 
 2. **Load and Display Projects**
    - Call `todu project list` with appropriate filters
@@ -45,54 +40,106 @@ This skill lists all registered projects using the `todu` CLI.
 
 ## Example Interactions
 
-**User**: "Show me my registered projects"
+**User**: "Show me my projects"
 **Skill**:
 
-- Calls: `todu project list --priority high --priority medium`
+- Calls: `todu project list --status active`
 - Displays the CLI output to user
 
-**User**: "List my projects for [system-name]"
+**User**: "List my projects for github"
 **Skill**:
 
 - Extracts system name from query
-- Calls: `todu project list --system <system-name> --priority high --priority medium`
+- Calls: `todu project list --system github --status active`
 - Displays filtered results for that system only
 
 **User**: "Show all my projects"
 **Skill**:
 
 - Calls: `todu project list`
-- Displays all projects without default filters
+- Displays all projects without filters (includes done projects)
+
+**User**: "Show my high priority projects"
+**Skill**:
+
+- Calls: `todu project list --priority high --status active`
+- Displays high priority active projects
+
+**User**: "Show done projects"
+**Skill**:
+
+- Calls: `todu project list --status done`
+- Displays completed/done projects
 
 **User**: "What projects do I have?"
 **Skill**:
 
-- Calls: `todu project list --priority high --priority medium`
+- Calls: `todu project list --status active`
 - Displays the CLI output to user
 
 ## CLI Interface
 
 ```bash
-# List projects with default filters (high/medium priority)
-todu project list --priority high --priority medium
+# List active projects (default)
+todu project list --status active
 
-# List all projects without filters
+# List all projects (including done)
 todu project list
 
-# Filter by specific system (with default filters)
-todu project list --system <system-name> --priority high --priority medium
+# Filter by specific system
+todu project list --system github --status active
+
+# Filter by priority
+todu project list --priority high --status active
+todu project list --priority medium --status active
+todu project list --priority low --status active
+
+# Show done/completed projects
+todu project list --status done
+```
+
+**Output format example:**
+
+```text
+ID   NAME         SYSTEM   STATUS   PRIORITY
+--   ----         ------   ------   --------
+1    todu-skills  github   active   high
+2    inbox        local    active   medium
+3    old-project  github   done     low
 ```
 
 ## Search Patterns
 
 Natural language queries the skill should understand:
 
-- "show my projects" → default filters (high/medium priority)
-- "list my projects" → default filters (high/medium priority)
-- "what projects do I have?" → default filters (high/medium priority)
-- "show my [system-name] projects" → filter by system with default filters
-- "show all my projects" → no filters, show everything
-- "list all registered projects" → no filters, show everything
+**Default (active projects):**
+
+- "show my projects" → `--status active`
+- "list my projects" → `--status active`
+- "what projects do I have?" → `--status active`
+
+**System filter:**
+
+- "show my github projects" → `--system github --status active`
+- "list projects for local" → `--system local --status active`
+
+**Priority filter:**
+
+- "show high priority projects" → `--priority high --status active`
+- "show low priority projects" → `--priority low --status active`
+- "list medium priority projects" → `--priority medium --status active`
+
+**Status filter:**
+
+- "show done projects" → `--status done`
+- "show completed projects" → `--status done`
+- "list finished projects" → `--status done`
+
+**All projects (no filters):**
+
+- "show all my projects" → no filters
+- "list all registered projects" → no filters
+- "show everything" → no filters
 
 ## Empty Registry Handling
 
@@ -105,4 +152,6 @@ If no projects are registered:
 ## Notes
 
 - Projects are managed by the todu API backend
+- Default behavior shows active projects only (hides done projects)
+- Use "all" keyword to include done projects
 - Use this to see what projects can be used with sync or task creation
