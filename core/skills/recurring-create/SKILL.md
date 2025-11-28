@@ -1,7 +1,7 @@
 ---
 name: core-recurring-create
 description: Create recurring tasks that repeat on a schedule. Use when user says "create a recurring task", "set up a weekly task", "make this repeat every *", "schedule a daily task", "create a task that repeats", "add a recurring task", "set up a monthly task", "create a task every *", "schedule recurring *", or similar queries. (plugin:core@todu)
-allowed-tools: Bash, AskUserQuestion
+allowed-tools: todu, Bash, AskUserQuestion
 ---
 
 # Create Recurring Task

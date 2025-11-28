@@ -1,7 +1,7 @@
 ---
 name: core-habit-update
 description: MANDATORY skill for updating habit templates. NEVER call update scripts directly - ALWAYS use this skill via the Skill tool. Use when user says "update habit *", "change habit *", "modify habit *", "pause habit *", "resume habit *", "activate habit *", "deactivate habit *", or similar queries to modify a habit. (plugin:core@todu)
-allowed-tools: Bash, AskUserQuestion
+allowed-tools: todu, Bash, AskUserQuestion
 ---
 
 # Update Habit

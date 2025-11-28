@@ -1,7 +1,7 @@
 ---
 name: core-recurring-delete
 description: Delete recurring task templates. Use when user says "delete recurring task *", "remove recurring task *", "cancel recurring task *", or similar queries. (plugin:core@todu)
-allowed-tools: Bash, AskUserQuestion
+allowed-tools: todu, Bash, AskUserQuestion
 ---
 
 # Delete Recurring Task
