@@ -10,6 +10,7 @@ allowed-tools: todu
 
 - Parsing project name from user query if mentioned
 - Running status-filtered queries for high-priority active tasks
+- Including all active tasks scheduled for today
 - Including all active tasks from the default project (e.g., Inbox)
 - Deduplicating results when tasks appear in multiple queries
 - Sorting results by due date
@@ -42,14 +43,20 @@ command.
    - If value is "(not set)" or empty, skip the default project query
 
 3. **Build CLI Commands**
-   - If user specifies a project, run ONE command:
+   - If user specifies a project, run TWO commands:
      - `todu task list --status active --priority high --project <name>`
-   - If NO project specified AND default project is set, run TWO commands:
+     - `todu task list --status active --scheduled-date <YYYY-MM-DD> --project <name>`
+       (today's date)
+   - If NO project specified AND default project is set, run THREE commands:
      - `todu task list --status active --priority high`
+     - `todu task list --status active --scheduled-date <YYYY-MM-DD>` (today's
+       date)
      - `todu task list --status active --project <default-project>` (all
        priorities)
-   - If NO project specified AND default project is NOT set, run ONE command:
+   - If NO project specified AND default project is NOT set, run TWO commands:
      - `todu task list --status active --priority high`
+     - `todu task list --status active --scheduled-date <YYYY-MM-DD>` (today's
+       date)
    - Do NOT validate project name - if invalid, commands will return no results
 
 4. **Process and Display Results**
@@ -71,6 +78,7 @@ command.
 2. Gets default project from `todu config show` → "Inbox"
 3. Executes:
    - `todu task list --status active --priority high`
+   - `todu task list --status active --scheduled-date 2025-12-01`
    - `todu task list --status active --project Inbox`
 4. Deduplicates results, sorts by due date, displays single table
 
@@ -83,7 +91,8 @@ command.
 1. Extracts: project="todu-skills"
 2. Executes (no default project query since user specified a project):
    - `todu task list --status active --priority high --project todu-skills`
-3. Sorts by due date, displays single table
+   - `todu task list --status active --scheduled-date 2025-12-01 --project todu-skills`
+3. Deduplicates results, sorts by due date, displays single table
 
 ### Example 3: Next actions (no default project set)
 
@@ -95,7 +104,8 @@ command.
 2. Gets default project from `todu config show` → "(not set)"
 3. Executes (skip default project query):
    - `todu task list --status active --priority high`
-4. Sorts by due date, displays single table
+   - `todu task list --status active --scheduled-date 2025-12-01`
+4. Deduplicates results, sorts by due date, displays single table
 
 ## CLI Command Reference
 
@@ -111,6 +121,7 @@ todu config show
 
 ```bash
 todu task list --status active --priority high
+todu task list --status active --scheduled-date 2025-12-01  # today's scheduled tasks
 todu task list --status active --project Inbox  # default project tasks
 ```
 
@@ -118,12 +129,14 @@ todu task list --status active --project Inbox  # default project tasks
 
 ```bash
 todu task list --status active --priority high
+todu task list --status active --scheduled-date 2025-12-01  # today's scheduled tasks
 ```
 
 **Next actions for specific project:**
 
 ```bash
 todu task list --status active --priority high --project todu-skills
+todu task list --status active --scheduled-date 2025-12-01 --project todu-skills
 ```
 
 ## Natural Language Parsing
@@ -164,6 +177,8 @@ Display results as a single markdown table sorted by due date:
 ## Notes
 
 - Only query "active" status (not "inprogress" - those are current, not next)
+- Always include all active tasks scheduled for today (use current date in
+  YYYY-MM-DD format)
 - Always include all active tasks from the default project (any priority)
 - Skip default project query if default project is "(not set)" or empty
 - Deduplicate tasks by ID when combining results from multiple queries
