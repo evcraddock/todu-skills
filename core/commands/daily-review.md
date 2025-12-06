@@ -20,40 +20,49 @@ Generate a daily review report with 6 sections and save to a local file.
 3. **Run queries with `--format json`**
 
    **In Progress:**
+
    ```bash
    todu task list --status inprogress --format json
    ```
 
    **Daily Goals** (habits scheduled for today):
+
    ```bash
    todu task list --scheduled-date <today> --format json
    ```
+
    - Filter for tasks that have a `template_id` (these are habit tasks)
    - Display as: `Habit Name : true` if status is "done", `Habit Name : false` otherwise
 
-   **Coming up Soon** (due in next 3 days, excluding today):
+   **Coming up Soon** (due today through next 3 days):
+
    ```bash
-   todu task list --status active --due-after <today> --due-before <soon> --format json
+   todu task list --status active --due-before <soon> --format json
    ```
 
    **Next** (high priority + scheduled today + default project):
+
    ```bash
    todu task list --status active --priority high --format json
    todu task list --status active --scheduled-date <today> --format json
    todu task list --status active --project <default-project> --format json
    ```
+
    - Deduplicate by task ID
    - Skip default project query if not set
 
    **Waiting:**
+
    ```bash
    todu task list --status waiting --format json
    ```
 
    **Done Today:**
+
    ```bash
    todu task list --status done --updated-after <today> --format json
    ```
+
    - Exclude tasks that have a `template_id` (habit tasks are already shown in Daily Goals)
    - List ALL remaining tasks from the query results
 
