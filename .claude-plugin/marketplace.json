@@ -1,13 +1,17 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "todu",
+  "description": "Task and habit management skills for Claude Code",
   "owner": {
-    "name": "Erik Craddock"
+    "name": "Erik Craddock",
+    "email": "erik@craddock.org"
   },
   "plugins": [
     {
       "name": "todu",
-      "source": ".",
-      "description": "todu skills for managing tasks and habits"
+      "source": "./",
+      "description": "todu skills for managing tasks and habits",
+      "category": "productivity"
     }
   ]
 }
