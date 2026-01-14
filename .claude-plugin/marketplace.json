@@ -5,9 +5,9 @@
   },
   "plugins": [
     {
-      "name": "core",
-      "source": "./core",
-      "description": "Core todu functionality - generate daily and weekly reports across all task systems"
+      "name": "todu",
+      "source": ".",
+      "description": "todu skills for managing tasks and habits"
     }
   ]
 }
