@@ -1,5 +1,5 @@
 ---
-name: core-task-view
+name: task-view
 description: >-
   MANDATORY skill for viewing task/issue details with comments. NEVER call
   view scripts directly - ALWAYS use this skill via the Skill tool. Use when

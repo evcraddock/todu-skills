@@ -1,5 +1,5 @@
 ---
-name: core-habit-delete
+name: habit-delete
 description: MANDATORY skill for deleting habit templates. NEVER call `todu template delete` directly - ALWAYS use this skill via the Skill tool. Use when user says "delete habit *", "remove habit *", "stop tracking habit *", "cancel habit *", or similar queries to delete a habit. (plugin:core@todu)
 allowed-tools: todu, Bash, AskUserQuestion
 ---

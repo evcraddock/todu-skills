@@ -1,5 +1,5 @@
 ---
-name: core-task-move
+name: task-move
 description: Move a task to a different project. Use when user says "move task #* to *", "transfer task #* to *", "move #* to project *", or similar queries to move a task between projects. (plugin:core@todu)
 allowed-tools: todu
 ---

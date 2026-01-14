@@ -1,5 +1,5 @@
 ---
-name: core-recurring-list
+name: recurring-list
 description: List and view recurring task templates. Use when user says "list recurring tasks", "show recurring tasks", "what recurring tasks do I have", "view my recurring tasks", "show repeating tasks", "list scheduled tasks", or similar queries. (plugin:core@todu)
 allowed-tools: todu, Bash
 ---

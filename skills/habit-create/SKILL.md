@@ -1,5 +1,5 @@
 ---
-name: core-habit-create
+name: habit-create
 description: Create habits to track and build over time. Use when user says "create a habit", "track a habit", "start tracking *", "I want to build a habit of *", "add a habit", "new habit", "track daily *", "create habit for *", or similar queries. (plugin:core@todu)
 allowed-tools: todu, Bash, AskUserQuestion
 ---

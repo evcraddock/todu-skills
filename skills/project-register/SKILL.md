@@ -1,5 +1,5 @@
 ---
-name: core-project-register
+name: project-register
 description: >-
   MANDATORY skill for registering projects with nickname conflict resolution.
   NEVER call 'todu project add' directly - ALWAYS use this skill via the

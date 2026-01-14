@@ -1,5 +1,5 @@
 ---
-name: core-recurring-update
+name: recurring-update
 description: Update, activate, or deactivate recurring task templates. Use when user says "update recurring task *", "change recurring task *", "modify recurring task *", "activate recurring task *", "deactivate recurring task *", "pause recurring task *", "resume recurring task *", "change schedule for *", or similar queries. (plugin:core@todu)
 allowed-tools: todu, Bash, AskUserQuestion
 ---
