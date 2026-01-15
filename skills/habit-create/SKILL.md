@@ -10,48 +10,6 @@ This skill creates habit tracking templates using `todu template create --type
 habit`. Habits are recurring behaviors you want to build and track over time
 (exercise, meditation, reading, etc.).
 
-## When to Use
-
-- User wants to create a habit to track
-- User says "create a habit", "track a habit", "start tracking", etc.
-- User wants to build a regular behavior or routine
-- User mentions habit-related activities (exercise, meditate, read, etc.)
-
-## What This Skill Does
-
-1. **Parse Request for Details**
-   - Extract project name if provided
-   - Extract habit name/title if provided
-   - Extract frequency (daily, specific days, etc.)
-   - Extract start date if provided
-   - Extract other optional fields if mentioned
-
-2. **Identify Project**
-   - If parsed from request: use it
-   - If not provided: check for default project via `todu config show`
-   - If default project exists: use it (inform user)
-   - If no default: run `todu project list --format json` and ask user
-
-3. **Gather Required Fields**
-   - **Title** (required): The habit name - only ask if not parsed
-   - **Recurrence** (required): Convert natural language to RRULE or ask user
-   - **Start Date** (required): Default to today if not specified
-
-4. **Build RRULE from Natural Language**
-   - Convert user-friendly frequency to RRULE format
-   - Default to daily if no frequency specified (most common for habits)
-   - See conversion table below
-
-5. **Create Template**
-   - Build CLI command with all gathered fields
-   - Use `--type habit` and `--format json`
-   - Execute command
-
-6. **Display Confirmation**
-   - Show created habit details (ID, name, schedule)
-   - Show next occurrence date
-   - Show success message
-
 ## Natural Language to RRULE Conversion
 
 | User Says            | RRULE                              |
@@ -78,18 +36,6 @@ habit`. Habits are recurring behaviors you want to build and track over time
 
 **Default**: If no frequency is specified, default to daily (`FREQ=DAILY;INTERVAL=1`)
 since most habits are daily activities.
-
-## Day Abbreviations for RRULE
-
-| Day       | Abbreviation |
-|-----------|--------------|
-| Monday    | MO           |
-| Tuesday   | TU           |
-| Wednesday | WE           |
-| Thursday  | TH           |
-| Friday    | FR           |
-| Saturday  | SA           |
-| Sunday    | SU           |
 
 ## Example Interactions
 
@@ -168,63 +114,15 @@ since most habits are daily activities.
 3. Converts to: `FREQ=WEEKLY;BYDAY=MO,WE,FR`
 4. Creates habit
 
-## Direct Parsing Patterns
-
-Parse these patterns from user requests:
-
-| User says                  | Parsed fields                            |
-|----------------------------|------------------------------------------|
-| "habit in PROJECT"         | project = PROJECT                        |
-| "habit to ACTIVITY"        | title = ACTIVITY                         |
-| "habit of ACTIVITY"        | title = ACTIVITY                         |
-| "track ACTIVITY"           | title = ACTIVITY                         |
-| "daily"                    | recurrence = FREQ=DAILY                  |
-| "every day"                | recurrence = FREQ=DAILY                  |
-| "every weekday"            | recurrence = FREQ=WEEKLY;BYDAY=MO,TU,... |
-| "Mon/Wed/Fri"              | recurrence = FREQ=WEEKLY;BYDAY=MO,WE,FR  |
-| "3 times a week"           | recurrence = FREQ=WEEKLY;BYDAY=MO,WE,FR  |
-| "starting DATE"            | start_date = DATE                        |
-
 ## CLI Interface
 
-**Get default project:**
-
 ```bash
-todu config show
-# Extract value after "Project:" in Defaults section
-```
-
-**List all projects** (if no default):
-
-```bash
-todu project list --format json
-```
-
-**Create habit template:**
-
-```bash
-# Required flags
 todu template create \
   --project <name> \
   --title <habit-name> \
   --recurrence <RRULE> \
   --start-date <YYYY-MM-DD> \
   --type habit \
-  --format json
-
-# With all optional flags
-todu template create \
-  --project <name> \
-  --title <habit-name> \
-  --recurrence <RRULE> \
-  --start-date <YYYY-MM-DD> \
-  --type habit \
-  --description <text> \
-  --priority <low|medium|high> \
-  --end-date <YYYY-MM-DD> \
-  --timezone <IANA timezone> \
-  --label <label1> --label <label2> \
-  --assignee <user1> --assignee <user2> \
   --format json
 ```
 
@@ -244,58 +142,13 @@ todu template create \
 | Labels      | `--label`       | No       | Any text (repeatable)  | none    |
 | Assignees   | `--assignee`    | No       | Username (repeatable)  | none    |
 
-## Prompting Strategy
-
-**Key principle**: Parse as much as possible from request. Default to daily if
-no frequency specified.
-
-1. **Project**:
-   - If in request: use it
-   - If default exists: use it (tell user)
-   - Otherwise: ask user to select
-
-2. **Title**:
-   - If in request: use it
-   - Otherwise: ask user "What habit do you want to track?"
-
-3. **Recurrence**:
-   - If frequency mentioned: convert to RRULE
-   - If not specified: default to daily (most common for habits)
-   - For "X times a week": suggest specific days or ask user
-
-4. **Start Date**:
-   - If in request: use it
-   - Otherwise: default to today's date
-
-5. **Optional Fields**:
-   - Only use values provided in request
-   - Don't prompt for optional fields unless mentioned but missing value
-
 ## Error Handling
 
 - **No projects exist**: Inform user they need to register a project first
-- **Project not found**: List available projects and suggest correct name
 - **Invalid RRULE**: Help user build valid recurrence pattern
-- **Invalid date format**: Explain YYYY-MM-DD format and ask again
-- **CLI errors**: Parse error output and show meaningful message
-- **Missing required fields**: Prompt for each missing field
-
-## Future Considerations
-
-When todu adds streak tracking for habits, this skill should be updated to:
-
-- Show current streak count after creation
-- Display streak statistics in confirmation
-- Potentially add habit-specific fields (target count, reminder times, etc.)
 
 ## Notes
 
-- Always use `--type habit` for habits (not task)
-- Start date defaults to today if not specified
-- **Default to daily** if no frequency is specified (unlike recurring-create)
-- Timezone defaults to UTC; consider asking if user mentions specific times
 - The RRULE format follows RFC 5545 (iCalendar) standard
-- Labels and assignees are repeatable flags
-- Parse natural language frequencies to make it easy for users
-- Show human-readable schedule in confirmation (not raw RRULE)
-- Habit names are often activities: "exercise", "meditate", "read", etc.
+- Consider asking for timezone if user mentions specific times
+- Unlike recurring-create, this skill defaults to daily when no frequency is specified
