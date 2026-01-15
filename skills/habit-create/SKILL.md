@@ -1,6 +1,6 @@
 ---
 name: habit-create
-description: Create habits to track and build over time. Use when user says "create a habit", "track a habit", "start tracking *", "I want to build a habit of *", "add a habit", "new habit", "track daily *", "create habit for *", or similar queries. (plugin:core@todu)
+description: Create habits to track and build over time. Use when user says "create a habit", "track a habit", "start tracking *", "I want to build a habit of *", "add a habit", "new habit", "track daily *", "create habit for *", or similar queries. (plugin:todu)
 allowed-tools: todu, Bash, AskUserQuestion
 ---
 
@@ -152,3 +152,4 @@ todu template create \
 - The RRULE format follows RFC 5545 (iCalendar) standard
 - Consider asking for timezone if user mentions specific times
 - Unlike recurring-create, this skill defaults to daily when no frequency is specified
+- Description must be valid markdown
