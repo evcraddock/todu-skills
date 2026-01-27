@@ -1,6 +1,6 @@
 ---
 name: task-perform
-description: Start working on a task or habit and follow its instructions. Use when user says "get started on task #*", "work on task #*", "handle task #*", "do task #*", "work on habit #*", "handle habit #*", "do habit #*", or similar. (plugin:todu)
+description: Start working on a task or habit and follow its instructions. Use when user says "do task #*", "perform task #*", "execute task #*", "handle task #*", "work on task #*", "do habit #*", "handle habit #*", "work on habit #*", or similar. (plugin:todu)
 allowed-tools: todu, Bash, Read, Write, Edit, AskUserQuestion
 ---
 
