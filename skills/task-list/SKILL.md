@@ -1,5 +1,5 @@
 ---
-name: task-search
+name: task-list
 description: Search and list tasks. Use when user says "list tasks", "show tasks", "find tasks", "search tasks", "* priority tasks", "tasks in *", or similar. (plugin:todu)
 allowed-tools: todu
 ---
@@ -33,7 +33,7 @@ When status IS specified, query only that status.
 | Filter   | Flag           | Values                        |
 |----------|----------------|-------------------------------|
 | Project  | `--project`    | Project name or ID            |
-| Status   | `--status`     | inprogress, active, done, cancelled |
+| Status   | `--status`     | active, inprogress, waiting, done, canceled |
 | Priority | `--priority`   | low, medium, high             |
 | Label    | `--label`      | Any label (repeatable)        |
 | Assignee | `--assignee`   | Username                      |
