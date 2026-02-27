@@ -6,44 +6,69 @@ allowed-tools: todu
 
 # View Task Details
 
-Displays full task details using `todu task show`.
+Shows task details using JSON CLI output and returns a consistent templated response.
 
-## Examples
+## Process
 
 ### View by ID
 
-**User**: "View task 20"
-
-Runs: `todu task show 20`
+1. Run: `todu task show <id> --format json`
+2. Parse JSON (`task`, `comments`)
+3. Render output using the template below
 
 ### Search by description
 
-**User**: "Show me the auth bug"
+When user provides keywords instead of an ID:
 
-1. Runs: `todu task list --search "auth bug"`
-2. If single match: `todu task show <id>`
-3. If multiple matches: ask user to select
+1. Run: `todu task list --search "<keywords>" --format json`
+2. If one match: run `todu task show <id> --format json`
+3. If multiple matches: ask user to choose the task ID
+4. Run: `todu task show <selected_id> --format json`
+5. Render with the template below
 
 ### No ID provided
 
-**User**: "Show me that task"
+1. Try to infer from recent conversation context
+2. If likely match: ask for confirmation
+3. If unclear: ask for task ID or search keywords
 
-1. Try to infer from conversation context
-2. If can infer: ask for confirmation
-3. If cannot: ask for task ID or keywords
+## Output Template
+
+Always return task details in this format:
+
+```text
+Task #<id>: <title>
+
+Status: <status>
+Priority: <priority>
+Project ID: <project_id>
+External ID: <external_id or ->
+Source URL: <source_url or ->
+Created: <created_timestamp>
+Updated: <updated_timestamp>
+
+Description:
+<full description or "(none)">
+
+Comments (<count>):
+- [<timestamp>] <author>: <comment>
+- [<timestamp>] <author>: <comment>
+```
+
+If there are no comments:
+
+```text
+Comments (0):
+- (none)
+```
 
 ## CLI Commands
 
 ```bash
-# View task
-todu task show <id>
+# View task (JSON)
+todu task show <id> --format json
 
-# Search for tasks
-todu task list --search "<keywords>"
+# Search for tasks (JSON)
+todu task list --search "<keywords>" --format json
 ```
 
-## Notes
-
-- Display CLI output directly
-- If no ID, try context inference or search by keywords
-- Multiple search matches: prompt user to select
