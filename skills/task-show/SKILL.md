@@ -51,9 +51,21 @@ Description:
 <full description or "(none)">
 
 Comments (<count>):
-- [<timestamp>] <author>: <comment>
-- [<timestamp>] <author>: <comment>
+- [<timestamp>] <author>
+  <comment line 1>
+  <comment line 2>
+
+- [<timestamp>] <author>
+  <comment line 1>
 ```
+
+Comment formatting rules:
+
+- Put metadata (`[timestamp] author`) on its own line.
+- Render comment body on following indented lines (2 spaces).
+- Preserve original newlines from comment content.
+- Keep markdown headings/lists as plain text (do not strip or reformat).
+- Add a blank line between comments for readability.
 
 If there are no comments:
 
