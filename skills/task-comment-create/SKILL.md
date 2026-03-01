@@ -31,15 +31,20 @@ todu task comment <id> -m "Comment text" --format json
 
 ## Special Character Handling
 
-| Character | Handling                          |
-|-----------|-----------------------------------|
-| `"`       | Use single quotes for outer       |
-| `'`       | Use double quotes for outer       |
-| `$`       | Escape as `\$`                    |
+| Character | Handling |
+|-----------|----------|
+| `"` | Use single quotes for outer |
+| `'` | Use double quotes for outer |
+| `$` | Escape as `\$` |
+| Newline chars (`LF`/`CRLF`) | Do not include in final comment text; replace with spaces |
+| Literal escape tokens (`\\n`, `\\r`, `\\r\\n`, `\\N`) | Forbidden in final comment text; replace with spaces |
 
 ## Notes
 
+- Comment text must be exactly one line in the `-m` value
+- Before composing the command, normalize text: replace newline characters and literal escape tokens (`\\n`, `\\r`, `\\r\\n`, `\\N`) with spaces, collapse repeated whitespace, then trim
+- Validate final `-m` value contains no newline characters and no literal `\\n`/`\\r`/`\\N`
+- Ensure the normalized final `-m` value is still valid markdown (single-line markdown is fine; use inline markdown like `**bold**`, `_italic_`, ``code``, and links)
 - If comment text not provided, summarize preceding activity on the task from conversation
-- Comments must be valid markdown
 - Comments should be professional and detailed
 - No confirmation needed - just add and show result
