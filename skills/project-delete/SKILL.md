@@ -6,7 +6,7 @@ allowed-tools: todu
 
 # Delete Registered Project
 
-Deletes a project from todu using `todu project remove`.
+Deletes a project from todu using `todu project delete`.
 
 ## Example Interactions
 
@@ -14,45 +14,46 @@ Deletes a project from todu using `todu project remove`.
 
 **User**: "Delete the todu-tests project"
 
-1. Runs `todu project list --format json` to find project ID
-2. Runs `todu task list --project todu-tests --format json` → 5 tasks
-3. Shows: "Project: todu-tests (5 tasks)"
-4. Asks: "Delete project only" / "Delete with tasks" / "Cancel"
-5. User selects: "Delete with tasks"
-6. Runs `todu project remove 22 --cascade --force`
+1. Runs `todu project show todu-tests --format json` to verify the project
+2. Runs `todu task list --project todu-tests --format json` to count remaining tasks
+3. Shows: "Project: todu-tests (5 visible tasks)"
+4. Asks: "Yes, delete" / "Cancel"
+5. User selects: "Yes, delete"
+6. Runs `todu project delete todu-tests`
 
-### Example 2: Project with no tasks
+### Example 2: Project with no visible tasks
 
 **User**: "Remove empty-project"
 
-1. Finds project, counts 0 tasks
-2. Asks: "Yes, delete" / "Cancel"
-3. Runs `todu project remove 15 --force`
+1. Verifies the project exists
+2. Shows the project details
+3. Asks: "Yes, delete" / "Cancel"
+4. Runs `todu project delete empty-project`
 
 ## CLI Commands
 
 ```bash
-# Find project ID
-todu project list --format json
+# Verify the project
 
-# Count tasks
+todu project show <ref> --format json
+
+# Count visible tasks for context
+
 todu task list --project <name> --format json
 
-# Delete project only (tasks become orphaned)
-todu project remove <id> --force
+# Delete after explicit confirmation
 
-# Delete project and tasks
-todu project remove <id> --cascade --force
+todu project delete <ref>
 ```
 
 ## Confirmation Options
 
-**Has tasks**: "Delete project only" / "Delete with tasks" / "Cancel"
-**No tasks**: "Yes, delete" / "Cancel"
+"Yes, delete" / "Cancel"
+
+Only delete if the user explicitly confirms.
 
 ## Notes
 
-- Must use project ID (not name) for remove command
-- `--cascade` deletes associated tasks
-- `--force` skips CLI confirmation (we handle it)
-- Without `--cascade`, tasks become orphaned (rarely useful)
+- The current CLI accepts a project name or ID as `<ref>`
+- Surface remaining task count before deletion so the user understands impact
+- If the CLI rejects deletion because dependent data still exists, tell the user what still needs to be moved or removed first

@@ -6,35 +6,39 @@ allowed-tools: todu, Bash
 
 # List Recurring Tasks
 
-Lists recurring task templates using `todu template list --type task`.
+Lists recurring task templates using `todu recurring list`.
 
 ## CLI Commands
 
 ```bash
 # List all recurring tasks
-todu template list --type task
+
+todu recurring list
 
 # Filter by project
-todu template list --type task --project myproject
+
+todu recurring list --project myproject
 
 # Filter by active status
-todu template list --type task --active true
-todu template list --type task --active false
 
-# Show specific template
-todu template show <id>
+todu recurring list --active
+todu recurring list --paused
+
+# Show a specific template
+
+todu recurring show <id>
 ```
 
 ## Examples
 
-- "show recurring tasks" → `todu template list --type task`
-- "recurring tasks in todu-skills" → `--type task --project todu-skills`
-- "active recurring tasks" → `--type task --active true`
-- "paused recurring tasks" → `--type task --active false`
-- "show recurring task #7" → `todu template show 7`
+- "show recurring tasks" → `todu recurring list`
+- "recurring tasks in todu-skills" → `todu recurring list --project todu-skills`
+- "active recurring tasks" → `todu recurring list --active`
+- "paused recurring tasks" → `todu recurring list --paused`
+- "show recurring task #7" → `todu recurring show 7`
 
 ## Notes
 
-- Always use `--type task` (not habit)
-- Default shows both active and inactive
-- Display CLI output directly
+- Default output includes both active and paused templates
+- Use `todu recurring show <id>` for full details
+- Display CLI output directly unless the user asks for a summary

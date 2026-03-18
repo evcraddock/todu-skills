@@ -6,18 +6,21 @@ allowed-tools: todu
 
 # Check Project Registration
 
-Checks if the current directory's git repository is registered in todu.
+Checks whether the current directory's git repository is connected to a todu
+project through an integration binding.
 
 ## Process
 
 1. Run `git remote -v` to get the origin URL
-2. Parse URL to extract git system and owner/repo
-3. Check `todu project list --format json` for matching external-id
-4. Report registration state with project details
+2. Parse the URL to extract the provider and `owner/repo`
+3. Run `todu integration list --format json`
+4. Find an integration where `provider` and `targetRef` match the current repo
+5. Run `todu project list --format json` to map the matching `projectId` to a project name
+6. Report the registration state with project details
 
 ## URL Parsing
 
-Extract owner/repo from common URL formats:
+Extract `owner/repo` from common URL formats:
 
 | Format | Example | Result |
 |--------|---------|--------|
@@ -26,15 +29,21 @@ Extract owner/repo from common URL formats:
 | Forgejo SSH | `git@git.example.com:owner/repo.git` | forgejo, owner/repo |
 | Forgejo HTTPS | `https://git.example.com/owner/repo.git` | forgejo, owner/repo |
 
-Strip `.git` suffix if present.
+Strip the `.git` suffix if present.
 
 ## CLI Commands
 
 ```bash
 # Get git remote
+
 git remote -v
 
-# Check registered projects
+# Check integration bindings
+
+todu integration list --format json
+
+# Resolve project names
+
 todu project list --format json
 ```
 
@@ -42,11 +51,12 @@ todu project list --format json
 
 Report in this format:
 
-```
+```text
 Registration: [Registered | Not Registered]
-Project Name: <nickname> (if registered)
-Git System: <github|forgejo|etc>
+Project Name: <name> (if registered)
+Provider: <github|forgejo|etc>
 Repository: <owner/repo>
+Integration ID: <id or ->
 ```
 
 ## Examples
@@ -57,16 +67,18 @@ Repository: <owner/repo>
 $ git remote -v
 origin  git@github.com:evcraddock/todu-skills.git (fetch)
 
-$ todu project list --format json
-# Returns project with external_id "evcraddock/todu-skills"
+$ todu integration list --format json
+# Returns binding with provider "github" and targetRef "evcraddock/todu-skills"
 ```
 
 Output:
-```
+
+```text
 Registration: Registered
 Project Name: todu-skills
-Git System: github
+Provider: github
 Repository: evcraddock/todu-skills
+Integration ID: ibind-12345678
 ```
 
 ### Unregistered project
@@ -75,19 +87,21 @@ Repository: evcraddock/todu-skills
 $ git remote -v
 origin  git@github.com:someuser/new-repo.git (fetch)
 
-$ todu project list --format json
-# No matching external_id
+$ todu integration list --format json
+# No matching targetRef
 ```
 
 Output:
-```
+
+```text
 Registration: Not Registered
-Git System: github
+Provider: github
 Repository: someuser/new-repo
+Integration ID: -
 ```
 
 ## Notes
 
-- Uses origin remote by default
-- Detects system from hostname (github.com → github, git.* → forgejo)
-- Check `todu system list` for configured git systems if hostname doesn't match
+- Use the `origin` remote by default
+- Detect the provider from the hostname (`github.com` → `github`, common self-hosted git hosts → `forgejo` unless a different provider is obvious)
+- If multiple integrations match, show all matching project names and ask the user which one they mean

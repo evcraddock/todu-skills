@@ -6,38 +6,40 @@ allowed-tools: todu
 
 # View Task Details
 
-Shows task details using JSON CLI output and returns a consistent templated response.
+Shows task details using JSON CLI output and returns a consistent templated
+response.
 
 ## Process
 
 ### View by ID
 
 1. Run: `todu task show <id> --format json`
-2. Parse JSON (`task`, `comments`)
-3. Render output using the template below
+2. Run: `todu note list --task <id> --format json`
+3. Parse the task JSON and attached notes
+4. Render output using the template below
 
-### Search by description
+### Search by title keywords
 
-When user provides keywords instead of an ID:
+When the user provides keywords instead of an ID:
 
-1. Run: `todu task list --search "<keywords>" --format json`
+1. Run: `todu task search "<keywords>" --format json`
 2. If one match: run `todu task show <id> --format json`
-3. If multiple matches: ask user to choose the task ID
-4. Run: `todu task show <selected_id> --format json`
+3. If multiple matches: ask the user to choose the task ID
+4. Run: `todu note list --task <selected_id> --format json`
 5. Render with the template below
 
 ### No ID provided
 
 1. Try to infer from recent conversation context
-2. If likely match: ask for confirmation
-3. If unclear: ask for task ID or search keywords
+2. If there is a likely match, ask for confirmation
+3. If unclear, ask for the task ID or title keywords
 
 ## Output Template
 
 Always return task details in this format:
 
 ```text
-Task #<id>: <title>
+Task <id>: <title>
 
 Status: <status>
 Priority: <priority>
@@ -50,27 +52,27 @@ Updated: <updated_timestamp>
 Description:
 <full description or "(none)">
 
-Comments (<count>):
+Notes (<count>):
 - [<timestamp>] <author>
-  <comment line 1>
-  <comment line 2>
+  <note line 1>
+  <note line 2>
 
 - [<timestamp>] <author>
-  <comment line 1>
+  <note line 1>
 ```
 
-Comment formatting rules:
+Note formatting rules:
 
-- Put metadata (`[timestamp] author`) on its own line.
-- Render comment body on following indented lines (2 spaces).
-- Preserve original newlines from comment content.
-- Keep markdown headings/lists as plain text (do not strip or reformat).
-- Add a blank line between comments for readability.
+- Put metadata (`[timestamp] author`) on its own line
+- Render note content on following indented lines (2 spaces)
+- Preserve original newlines from note content
+- Keep markdown headings and lists as plain text (do not strip or reformat)
+- Add a blank line between notes for readability
 
-If there are no comments:
+If there are no notes:
 
 ```text
-Comments (0):
+Notes (0):
 - (none)
 ```
 
@@ -78,9 +80,14 @@ Comments (0):
 
 ```bash
 # View task (JSON)
+
 todu task show <id> --format json
 
-# Search for tasks (JSON)
-todu task list --search "<keywords>" --format json
-```
+# View notes attached to the task
 
+todu note list --task <id> --format json
+
+# Search for tasks by title (JSON)
+
+todu task search "<keywords>" --format json
+```

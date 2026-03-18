@@ -6,7 +6,9 @@ allowed-tools: todu
 
 # Update Registered Project
 
-Updates project fields using `todu project update`.
+Updates project fields using `todu project update`. If the user asks to change a
+repository sync strategy, update the integration binding with
+`todu integration set-strategy`.
 
 ## Examples
 
@@ -14,55 +16,68 @@ Updates project fields using `todu project update`.
 
 **User**: "Rename todu-tests to my-tests"
 
-1. Finds project ID via `todu project list --format json`
-2. Confirms change: "name: todu-tests → my-tests"
-3. Runs: `todu project update 1 --name my-tests`
+1. Confirms change: "name: todu-tests → my-tests"
+2. Runs: `todu project update todu-tests --name my-tests`
 
 ### Multiple updates
 
 **User**: "Mark todu-tests as done and set priority to low"
 
-Runs: `todu project update 1 --status done --priority low`
+Runs: `todu project update todu-tests --status done --priority low`
+
+### Sync strategy update
+
+**User**: "Set the todu-tests sync strategy to pull"
+
+1. Runs `todu integration list --project todu-tests --format json`
+2. Finds the matching integration binding
+3. Runs: `todu integration set-strategy <integration-id> --strategy pull`
 
 ### Interactive (no specific update given)
 
 **User**: "Update the todu-tests project"
 
 1. Shows current details
-2. Asks which fields to update (multiSelect)
+2. Asks which fields to update
 3. Collects new values
 4. Confirms and applies
 
 ## CLI Commands
 
 ```bash
-# Find project ID
-todu project list --format json
+# Show current project
 
-# Update fields
-todu project update <id> --name <new-name>
-todu project update <id> --description "text"
-todu project update <id> --status <active|done|cancelled>
-todu project update <id> --priority <low|medium|high>
-todu project update <id> --sync-strategy <pull|push|bidirectional>
+todu project show <ref> --format json
 
-# Multiple fields
-todu project update <id> --name new-name --status done --priority high
+# Update project fields
+
+todu project update <ref> --name <new-name>
+todu project update <ref> --description "text"
+todu project update <ref> --status <active|done|canceled>
+todu project update <ref> --priority <low|medium|high>
+
+# Update integration strategy when requested
+
+todu integration list --project <ref> --format json
+todu integration set-strategy <integration-id> --strategy <pull|push|bidirectional|none>
+
+# Multiple project fields
+
+todu project update <ref> --name new-name --status done --priority high
 ```
 
-## Updateable Fields
+## Updatable Fields
 
-| Field         | Flag              | Valid Values                |
-|---------------|-------------------|-----------------------------|
-| Name          | `--name`          | Any unique string           |
-| Description   | `--description`   | Any text                    |
-| Status        | `--status`        | active, done, cancelled     |
-| Priority      | `--priority`      | low, medium, high           |
-| Sync Strategy | `--sync-strategy` | pull, push, bidirectional   |
-
-**Not updateable**: system, external_id (delete and re-add instead)
+| Field         | Command / Flag                                         | Valid Values                    |
+|---------------|--------------------------------------------------------|---------------------------------|
+| Name          | `todu project update --name`                           | Any unique string               |
+| Description   | `todu project update --description`                    | Any text                        |
+| Status        | `todu project update --status`                         | active, done, canceled          |
+| Priority      | `todu project update --priority`                       | low, medium, high               |
+| Sync Strategy | `todu integration set-strategy --strategy`             | pull, push, bidirectional, none |
 
 ## Notes
 
-- Must use project ID (not name) for update command
-- Parse updates from request to skip unnecessary prompts
+- The current CLI accepts a project name or ID as `<ref>`
+- Parse updates from the user request to avoid unnecessary prompts
+- If multiple integration bindings exist for the same project, ask the user which one to update

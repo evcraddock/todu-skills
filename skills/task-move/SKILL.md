@@ -10,8 +10,8 @@ Moves a task to another project using `todu task move`.
 
 ## What the CLI Does
 
-- Creates new task in target project with same fields
-- Adds linking comments to both tasks
+- Creates a new task in the target project with the same fields
+- Adds linking notes to both tasks
 - Cancels the original task
 
 ## Examples
@@ -21,7 +21,7 @@ Moves a task to another project using `todu task move`.
 **User**: "Move task 20 to todu-api"
 
 1. Asks: "Move task #20 to todu-api?"
-2. If confirmed: `todu task move 20 --project todu-api`
+2. If confirmed: `todu task move 20 todu-api`
 
 ### Missing project
 
@@ -34,11 +34,10 @@ Moves a task to another project using `todu task move`.
 ## CLI Commands
 
 ```bash
-todu task move <id> --project <name>
+todu task move <id> <project>
 ```
 
 ## Notes
 
-- Always confirm before moving (destructive operation)
-- Original task is canceled after move
-- Both tasks get linking comments for traceability
+- Always confirm before moving because the original task is canceled
+- Both tasks receive linking notes for traceability

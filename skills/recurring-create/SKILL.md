@@ -6,7 +6,7 @@ allowed-tools: todu, Bash, AskUserQuestion
 
 # Create Recurring Task
 
-Creates recurring task templates using `todu template create --type task`.
+Creates recurring task templates using `todu recurring create`.
 
 ## Natural Language to RRULE Conversion
 
@@ -32,7 +32,7 @@ Creates recurring task templates using `todu template create --type task`.
 
 1. Parses: project="todu-skills", title="Weekly review", frequency="every Friday"
 2. Converts: `FREQ=WEEKLY;BYDAY=FR`
-3. Runs: `todu template create --project todu-skills --title "Weekly review" --recurrence "FREQ=WEEKLY;BYDAY=FR" --start-date 2025-11-28 --type task --format json`
+3. Runs: `todu recurring create --project todu-skills --title "Weekly review" --schedule "FREQ=WEEKLY;BYDAY=FR" --start-date 2026-03-18 --format json`
 
 ### Example 2: Monthly task
 
@@ -40,8 +40,8 @@ Creates recurring task templates using `todu template create --type task`.
 
 1. Parses: title="monthly review", frequency="on the 1st"
 2. Converts: `FREQ=MONTHLY;BYMONTHDAY=1`
-3. Asks for project if no default
-4. Creates template
+3. Asks for project if no project is specified
+4. Creates the recurring template
 
 ### Example 3: Minimal request
 
@@ -49,38 +49,37 @@ Creates recurring task templates using `todu template create --type task`.
 
 1. Asks for title
 2. Asks for frequency (daily/weekly/specific days/monthly)
-3. Asks for project if no default
-4. Creates template
+3. Asks for project
+4. Creates the recurring template
 
 ## CLI Commands
 
 ```bash
-# Get default project
-todu config show
+# List projects when the user does not specify one
 
-# List projects
 todu project list --format json
 
 # Create recurring task
-todu template create \
+
+todu recurring create \
   --project <name> \
   --title <title> \
-  --recurrence <RRULE> \
+  --schedule <RRULE> \
   --start-date <YYYY-MM-DD> \
-  --type task \
   --format json
 
 # Optional flags
 --description <text>
 --priority <low|medium|high>
 --end-date <YYYY-MM-DD>
+--timezone <IANA timezone>
+--miss-policy <accumulate|rollForward>
 --label <label>
---assignee <user>
 ```
 
 ## Notes
 
 - RRULE follows RFC 5545 (iCalendar) standard
-- Start date defaults to today
-- Ask for frequency if not specified (unlike habit-create which defaults to daily)
+- Start date defaults to today if omitted
+- Ask for frequency if it is not specified (unlike habit-create, which defaults to daily)
 - Description must be valid markdown

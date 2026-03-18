@@ -6,9 +6,9 @@ allowed-tools: todu, Bash, AskUserQuestion
 
 # Create Habit
 
-This skill creates habit tracking templates using `todu template create --type
-habit`. Habits are recurring behaviors you want to build and track over time
-(exercise, meditation, reading, etc.).
+This skill creates habits using `todu habit create`. Habits are recurring
+behaviors you want to build and track over time (exercise, meditation,
+reading, etc.).
 
 ## Natural Language to RRULE Conversion
 
@@ -34,8 +34,8 @@ habit`. Habits are recurring behaviors you want to build and track over time
 | "weekly"             | `FREQ=WEEKLY;INTERVAL=1`           |
 | "every week"         | `FREQ=WEEKLY;INTERVAL=1`           |
 
-**Default**: If no frequency is specified, default to daily (`FREQ=DAILY;INTERVAL=1`)
-since most habits are daily activities.
+**Default**: If no frequency is specified, default to daily
+(`FREQ=DAILY;INTERVAL=1`) since most habits are daily activities.
 
 ## Example Interactions
 
@@ -46,12 +46,10 @@ since most habits are daily activities.
 **Skill**:
 
 1. Parses: title="exercise", frequency="daily"
-2. Checks for default project or asks user
+2. Asks for project if not specified
 3. Converts frequency: `FREQ=DAILY;INTERVAL=1`
 4. Uses today as start date
-5. Executes: `todu template create --project Inbox --title "exercise"
-   --recurrence "FREQ=DAILY;INTERVAL=1" --start-date 2025-11-28 --type habit
-   --format json`
+5. Executes: `todu habit create --project Inbox --title "exercise" --schedule "FREQ=DAILY;INTERVAL=1" --start-date 2026-03-18 --format json`
 6. Shows: "Created habit: exercise (daily)"
 
 ### Example 2: Habit with specific days
@@ -100,7 +98,7 @@ since most habits are daily activities.
    - Specific days (Mon, Wed, Fri, etc.)
    - Weekdays only
    - Custom
-4. Asks for project if no default
+4. Asks for project
 5. Creates habit with gathered info
 
 ### Example 6: "3 times a week"
@@ -117,12 +115,17 @@ since most habits are daily activities.
 ## CLI Interface
 
 ```bash
-todu template create \
+# List projects when user does not specify one
+
+todu project list --format json
+
+# Create habit
+
+todu habit create \
   --project <name> \
   --title <habit-name> \
-  --recurrence <RRULE> \
+  --schedule <RRULE> \
   --start-date <YYYY-MM-DD> \
-  --type habit \
   --format json
 ```
 
@@ -132,20 +135,16 @@ todu template create \
 |-------------|-----------------|----------|------------------------|---------|
 | Project     | `--project`     | Yes      | Any registered project | -       |
 | Title       | `--title`       | Yes      | Any text               | -       |
-| Recurrence  | `--recurrence`  | Yes      | RRULE format           | daily   |
-| Start Date  | `--start-date`  | Yes      | YYYY-MM-DD             | today   |
-| Type        | `--type`        | Yes      | habit                  | habit   |
+| Schedule    | `--schedule`    | Yes      | RRULE format           | daily   |
+| Start Date  | `--start-date`  | No       | YYYY-MM-DD             | today   |
 | Description | `--description` | No       | Any text               | empty   |
-| Priority    | `--priority`    | No       | low, medium, high      | medium  |
 | End Date    | `--end-date`    | No       | YYYY-MM-DD             | none    |
-| Timezone    | `--timezone`    | No       | IANA timezone          | UTC     |
-| Labels      | `--label`       | No       | Any text (repeatable)  | none    |
-| Assignees   | `--assignee`    | No       | Username (repeatable)  | none    |
+| Timezone    | `--timezone`    | No       | IANA timezone          | local   |
 
 ## Error Handling
 
-- **No projects exist**: Inform user they need to register a project first
-- **Invalid RRULE**: Help user build valid recurrence pattern
+- **No projects exist**: Inform user they need to create a project first
+- **Invalid RRULE**: Help user build a valid recurrence pattern
 
 ## Notes
 

@@ -6,17 +6,16 @@ allowed-tools: todu, Bash
 
 # Add Comment to Task
 
-Adds comments to tasks using `todu task comment`.
+Adds task updates using `todu note add --task`. The current CLI stores these
+updates as notes attached to the task.
 
 ## Behavior
 
-1. Parse task ID and comment text from the user request.
-2. If comment text is missing, summarize preceding task activity from the
-   conversation.
-3. Prefer clear markdown structure for non-trivial updates (short heading and
-   bullets).
+1. Parse the task ID and comment text from the user request.
+2. If comment text is missing, summarize preceding task activity from the conversation.
+3. Prefer clear markdown structure for non-trivial updates (short heading and bullets).
 4. Validate markdown with `markdownlint-cli2` before posting.
-5. Only run `todu task comment` if lint exits with code 0.
+5. Only run `todu note add --task` if lint exits with code 0.
 
 ## Examples
 
@@ -26,7 +25,7 @@ Adds comments to tasks using `todu task comment`.
 
 1. Build comment markdown
 2. Lint comment markdown
-3. Run: `todu task comment 214 -m "Fixed in PR #42" --format json`
+3. Run: `todu note add --task 214 "Fixed in PR #42" --format json`
 
 ### Comment text not provided
 
@@ -35,17 +34,17 @@ Adds comments to tasks using `todu task comment`.
 1. Summarize preceding activity from the conversation
 2. Format as markdown (multi-line is allowed and preferred when useful)
 3. Lint the markdown
-4. Run: `todu task comment 215 -m "<markdown summary>" --format json`
+4. Run: `todu note add --task 215 "<markdown summary>" --format json`
 
 ## CLI Command
 
 ```bash
-todu task comment <id> -m "Comment markdown" --format json
+todu note add --task <id> "Comment markdown" --format json
 ```
 
 ## Safe Multi-Line Command Pattern
 
-Use a heredoc so markdown formatting is preserved:
+Use a shell variable so markdown formatting is preserved:
 
 ```bash
 COMMENT=$(cat <<'MD'
@@ -56,12 +55,12 @@ COMMENT=$(cat <<'MD'
 MD
 )
 
-todu task comment <id> -m "$COMMENT" --format json
+todu note add --task <id> "$COMMENT" --format json
 ```
 
 ## Markdown Validation Gate (Required)
 
-Before **every** `todu task comment` command:
+Before **every** `todu note add --task` command:
 
 1. Normalize line endings to LF (`\n`).
 2. Ensure the markdown ends with exactly one trailing newline.
@@ -80,7 +79,7 @@ rm -f "$cfg"
 
 ## Notes
 
-- Multi-line markdown is supported and preferred for substantial updates.
-- One-line comments are fine for small updates.
-- Keep comments professional and specific about what changed.
-- No confirmation needed; add the comment and show the result.
+- Multi-line markdown is supported and preferred for substantial updates
+- One-line comments are fine for small updates
+- Keep comments professional and specific about what changed
+- No confirmation needed; add the note and show the result

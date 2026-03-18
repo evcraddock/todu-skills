@@ -6,42 +6,50 @@ allowed-tools: todu
 
 # Search Tasks
 
-Search tasks using `todu task list`.
+Uses `todu task list` for structured filters and `todu task search` for
+keyword search.
 
 ## Default Behavior
 
-When status NOT specified, query both statuses and combine results:
+When the user asks for tasks without specifying a status, show active and
+in-progress tasks by default:
 
 ```bash
-todu task list --status inprogress [filters]
-todu task list --status active [filters]
+todu task list --status active,inprogress [filters]
 ```
 
-When status IS specified, query only that status.
+When the user specifies a status, query only that status.
+
+Use keyword search when the user is clearly searching by title text:
+
+```bash
+todu task search "<keywords>" --format json
+```
 
 ## Examples
 
-- "show my tasks" → `--status inprogress` + `--status active`
-- "tasks in todu-tests" → `--project todu-tests --status inprogress` + `--status active`
-- "high priority bugs" → `--priority high --label bug --status inprogress` + `--status active`
-- "show completed tasks" → `--status done`
-- "show all tasks including done" → no status filter
-- "overdue tasks" → `--due-before <today>`
+- "show my tasks" → `todu task list --status active,inprogress`
+- "tasks in todu-tests" → `todu task list --project todu-tests --status active,inprogress`
+- "high priority bugs" → `todu task list --priority high --label bug --status active,inprogress`
+- "show completed tasks" → `todu task list --status done`
+- "show all tasks including done" → `todu task list`
+- "overdue tasks" → `todu task list --overdue`
+- "search tasks for auth" → `todu task search "auth" --format json`
 
 ## Available Filters
 
-| Filter   | Flag           | Values                        |
-|----------|----------------|-------------------------------|
-| Project  | `--project`    | Project name or ID            |
-| Status   | `--status`     | active, inprogress, waiting, done, canceled |
-| Priority | `--priority`   | low, medium, high             |
-| Label    | `--label`      | Any label (repeatable)        |
-| Assignee | `--assignee`   | Username                      |
-| Search   | `--search`     | Full-text search              |
-| Due      | `--due-before` | YYYY-MM-DD                    |
-|          | `--due-after`  | YYYY-MM-DD                    |
+| Filter   | Flag         | Values                         |
+|----------|--------------|--------------------------------|
+| Project  | `--project`  | Project name or ID             |
+| Status   | `--status`   | Comma-separated status values  |
+| Priority | `--priority` | low, medium, high              |
+| Label    | `--label`    | Any label                      |
+| Overdue  | `--overdue`  | Flag                           |
+| Today    | `--today`    | Flag                           |
+| Sort     | `--sort`     | priority, dueDate, createdAt, updatedAt, title |
+| Order    | `--asc`      | Ascending order                |
 
 ## Notes
 
-- Combine and deduplicate results when querying multiple statuses
-- Display CLI output directly
+- Use `todu task search` for title keyword search; use `todu task list` for structured filtering
+- Display CLI output directly unless the user asks for a summary or prioritization

@@ -6,19 +6,50 @@ allowed-tools: todu, Bash
 
 # List Habits
 
-Show today's habit tasks using `todu task list --scheduled-date`.
+Lists habits using `todu habit list` and shows details with `todu habit show` when
+needed.
 
-## Command
+## Default Behavior
+
+When the user asks broadly what habits they are tracking, show active habits by
+default.
+
+## CLI Commands
 
 ```bash
-todu task list --scheduled-date $(date +%Y-%m-%d)
+# Default view
+
+todu habit list --active
+
+# Show all habits
+
+todu habit list
+
+# Filter by project
+
+todu habit list --project <project>
+
+# Filter by status
+
+todu habit list --active
+
+todu habit list --paused
+
+# Show specific habit details
+
+todu habit show <id>
 ```
 
-## Optional Filters
+## Examples
 
-| Filter    | Flag                | Example                  |
-|-----------|---------------------|--------------------------|
-| Project   | `--project`         | `--project myproject`    |
-| Status    | `--status`          | `--status open` or `done`|
+- "show my habits" → `todu habit list --active`
+- "show all habits" → `todu habit list`
+- "paused habits" → `todu habit list --paused`
+- "habits in wellness" → `todu habit list --project wellness`
+- "show habit 7" → `todu habit show 7`
 
-Display CLI output directly to the user.
+## Notes
+
+- Default to active habits unless the user asks for paused or all habits
+- Use `todu habit show <id>` for full streak and schedule details
+- Display CLI output directly unless the user asks for a summary

@@ -8,34 +8,36 @@ allowed-tools: todu
 
 Lists projects using `todu project list`.
 
-**Default**: Active status with high or medium priority (unless user specifies otherwise).
+**Default**: Show active projects unless the user asks for a different status.
 
 ## CLI Commands
 
 ```bash
-# Default (active, high/medium priority)
-todu project list --status active --priority high,medium
+# Default
 
-# All active projects
 todu project list --status active
 
-# Filter by system
-todu project list --system github --status active
-
-# Filter by specific priority
-todu project list --priority high --status active
-
 # Show done projects
+
 todu project list --status done
 
+# Show canceled projects
+
+todu project list --status canceled
+
 # Show all projects (no filters)
+
 todu project list
 ```
 
 ## Examples
 
-- "show my projects" → `--status active --priority high,medium`
+- "show my projects" → `--status active`
 - "show all my projects" → no filters
-- "show my github projects" → `--system github --status active`
-- "show high priority projects" → `--priority high --status active`
 - "show done projects" → `--status done`
+- "show canceled projects" → `--status canceled`
+
+## Notes
+
+- The current CLI filters projects by status only
+- If the user asks for unsupported filtering such as provider or priority, list projects in JSON and filter the results after retrieval

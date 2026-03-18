@@ -20,10 +20,9 @@ Runs: `todu task create --project todu-skills --title "Fix authentication bug" -
 
 **User**: "Create a task: Update documentation"
 
-1. Runs `git remote -v` to try to determine project from repo name
-2. If not found, gets default project from `todu config show`
-3. If no default, asks user to select from `todu project list --format json`
-4. Runs: `todu task create --project <project> --title "Update documentation" --format json`
+1. If the current repository clearly maps to a todu project, reuse it
+2. Otherwise ask the user to choose from `todu project list --format json`
+3. Runs: `todu task create --project <project> --title "Update documentation" --format json`
 
 ### Bug with reproduction steps
 
@@ -34,13 +33,12 @@ Runs: `todu task create --project todu.sh --title "Login fails on mobile" --labe
 ## CLI Commands
 
 ```bash
-# Get default project
-todu config show
+# List projects when a project is not specified
 
-# List projects (if no default)
 todu project list --format json
 
 # Create task
+
 todu task create \
   --project <name> \
   --title <title> \
@@ -49,18 +47,17 @@ todu task create \
 # Optional flags
 --description <text>
 --priority <low|medium|high>
---status <active|waiting>
 --label <label>
---assignee <user>
 --due <YYYY-MM-DD>
+--scheduled <YYYY-MM-DD>
 ```
 
 ## Notes
 
-- If project specified, use it directly (no verification needed)
-- If no project: try `git remote -v` first, then default from `todu config show`, then ask user
-- Parse as much as possible from user request to minimize prompts
+- If the project is specified, use it directly
+- If no project is specified, infer it from the current repo when possible; otherwise ask the user
+- Parse as much as possible from the user request to minimize prompts
 - Description must be valid markdown
 - Descriptions should be professional with detailed requirements
-- **Bugs**: Include detailed reproduction steps in description (steps to reproduce, expected behavior, actual behavior)
-- Labels and assignees are repeatable flags
+- **Bugs**: Include detailed reproduction steps in the description (steps to reproduce, expected behavior, actual behavior)
+- Labels are repeatable flags
