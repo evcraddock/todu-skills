@@ -1,7 +1,7 @@
 ---
 name: project-check
 description: Check if the current git repository is registered as a project. Use when user says "check project", "is this registered", "project status", "check if project exists", or similar. (plugin:todu)
-allowed-tools: todu
+allowed-tools: Bash
 ---
 
 # Check Project Registration

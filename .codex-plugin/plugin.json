@@ -1,0 +1,42 @@
+{
+  "name": "todu",
+  "version": "0.1.0",
+  "description": "Codex skills for managing tasks, projects, habits, and recurring tasks with the todu CLI.",
+  "author": {
+    "name": "Erik Craddock",
+    "email": "erik@craddock.org",
+    "url": "https://github.com/evcraddock"
+  },
+  "homepage": "https://github.com/evcraddock/todu-skills",
+  "repository": "https://github.com/evcraddock/todu-skills",
+  "license": "MIT",
+  "keywords": [
+    "todu",
+    "tasks",
+    "habits",
+    "projects",
+    "productivity",
+    "cli"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Todu",
+    "shortDescription": "Manage todu tasks, projects, habits, and recurring tasks",
+    "longDescription": "Use the todu CLI from Codex to create, update, search, and organize tasks, projects, habits, notes, and recurring task templates.",
+    "developerName": "Erik Craddock",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/evcraddock/todu-skills",
+    "brandColor": "#2563EB",
+    "defaultPrompt": [
+      "Show my active todu tasks",
+      "Create a high priority task in this project",
+      "Check in one of my habits"
+    ],
+    "screenshots": []
+  }
+}

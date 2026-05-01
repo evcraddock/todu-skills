@@ -1,7 +1,7 @@
 ---
 name: project-list
 description: List registered projects. Use when user says "list projects", "show projects", "what projects", or similar. (plugin:todu)
-allowed-tools: todu
+allowed-tools: Bash
 ---
 
 # List Registered Projects

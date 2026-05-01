@@ -1,7 +1,7 @@
 ---
 name: habit-check
 description: Check in a habit for today or undo today's check-in. Use when user says "check off habit *", "mark habit * done", "I did habit *", "complete habit *", "undo habit check *", or similar. (plugin:todu)
-allowed-tools: todu, Bash, AskUserQuestion
+allowed-tools: Bash
 ---
 
 # Habit Check

@@ -1,7 +1,7 @@
 ---
 name: habit-delete
 description: Delete habit templates. Use when user says "delete habit *", "remove habit *", "stop tracking *", or similar. (plugin:todu)
-allowed-tools: todu, Bash, AskUserQuestion
+allowed-tools: Bash
 ---
 
 # Delete Habit

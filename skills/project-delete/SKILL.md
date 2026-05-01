@@ -1,7 +1,7 @@
 ---
 name: project-delete
 description: Delete registered projects. Use when user says "delete project *", "remove project *", "unregister project *", or similar. (plugin:todu)
-allowed-tools: todu
+allowed-tools: Bash
 ---
 
 # Delete Registered Project

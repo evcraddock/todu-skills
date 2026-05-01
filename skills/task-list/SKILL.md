@@ -1,7 +1,7 @@
 ---
 name: task-list
 description: Search and list tasks. Use when user says "list tasks", "show tasks", "find tasks", "search tasks", "* priority tasks", "tasks in *", or similar. (plugin:todu)
-allowed-tools: todu
+allowed-tools: Bash
 ---
 
 # Search Tasks

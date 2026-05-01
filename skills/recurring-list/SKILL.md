@@ -1,7 +1,7 @@
 ---
 name: recurring-list
 description: List recurring task templates. Use when user says "list recurring tasks", "show recurring tasks", or similar. (plugin:todu)
-allowed-tools: todu, Bash
+allowed-tools: Bash
 ---
 
 # List Recurring Tasks

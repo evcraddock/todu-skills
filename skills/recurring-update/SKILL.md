@@ -1,7 +1,7 @@
 ---
 name: recurring-update
 description: Update, pause, or resume recurring task templates. Use when user says "update recurring task *", "pause recurring task *", "resume recurring task *", or similar. (plugin:todu)
-allowed-tools: todu, Bash, AskUserQuestion
+allowed-tools: Bash
 ---
 
 # Update Recurring Task

@@ -1,7 +1,7 @@
 ---
 name: task-show
 description: View task details. Use when user says "show task #*", "view task #*", "details of task *", "take a look at task #*", or similar. (plugin:todu)
-allowed-tools: todu
+allowed-tools: Bash
 ---
 
 # View Task Details

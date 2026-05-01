@@ -1,7 +1,7 @@
 ---
 name: project-register
 description: Register a new project. Use when user says "register project *", "add project *", or similar. (plugin:todu)
-allowed-tools: todu
+allowed-tools: Bash
 ---
 
 # Register Project

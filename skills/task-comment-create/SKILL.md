@@ -1,7 +1,7 @@
 ---
 name: task-comment-create
 description: Add comments to tasks. Use when user says "add comment to task #*", "comment on #*", "add note to task *", or similar. (plugin:todu)
-allowed-tools: todu, Bash
+allowed-tools: Bash
 ---
 
 # Add Comment to Task

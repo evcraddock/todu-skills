@@ -1,7 +1,7 @@
 ---
 name: habit-update
 description: Update, pause, or resume habit templates. Use when user says "update habit *", "change habit *", "pause habit *", "resume habit *", or similar. (plugin:todu)
-allowed-tools: todu, Bash, AskUserQuestion
+allowed-tools: Bash
 ---
 
 # Update Habit

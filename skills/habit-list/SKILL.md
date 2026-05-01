@@ -1,7 +1,7 @@
 ---
 name: habit-list
 description: List and view habits. Use when user says "list habits", "show habits", "what habits am I tracking", "view my habits", "show my habits", "list tracked habits", or similar queries. (plugin:todu)
-allowed-tools: todu, Bash
+allowed-tools: Bash
 ---
 
 # List Habits

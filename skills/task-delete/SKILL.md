@@ -1,7 +1,7 @@
 ---
 name: task-delete
 description: Delete tasks. Use when user says "delete task *", "remove task *", "trash task *", or similar. (plugin:todu)
-allowed-tools: todu, Bash, AskUserQuestion
+allowed-tools: Bash
 ---
 
 # Delete Task

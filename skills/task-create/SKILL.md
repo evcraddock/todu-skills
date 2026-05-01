@@ -1,7 +1,7 @@
 ---
 name: task-create
 description: Create tasks/issues. Use when user says "create a task", "create an issue", "new task", "add task to *", "create bug", "add bug", "new bug", or similar. (plugin:todu)
-allowed-tools: todu
+allowed-tools: Bash
 ---
 
 # Create Task

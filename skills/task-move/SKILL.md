@@ -1,7 +1,7 @@
 ---
 name: task-move
 description: Move a task to a different project. Use when user says "move task #* to *", "transfer task #* to *", or similar. (plugin:todu)
-allowed-tools: todu
+allowed-tools: Bash
 ---
 
 # Move Task to Different Project

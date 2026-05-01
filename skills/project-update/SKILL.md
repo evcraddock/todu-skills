@@ -1,7 +1,7 @@
 ---
 name: project-update
 description: Update registered projects. Use when user says "update project *", "rename project *", "mark project * as done", or similar. (plugin:todu)
-allowed-tools: todu
+allowed-tools: Bash
 ---
 
 # Update Registered Project

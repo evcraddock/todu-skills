@@ -1,7 +1,7 @@
 ---
 name: task-update
 description: Update tasks/issues. Use when user says "update task #*", "mark task #* as *", "set priority on #*", "mark task done", "set task status to done", "quick close task", or similar. (plugin:todu)
-allowed-tools: todu
+allowed-tools: Bash
 ---
 
 # Update Task
